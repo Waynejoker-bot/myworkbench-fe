@@ -1,0 +1,23 @@
+{
+  "name": "todolist-component",
+  "version": "1.0.0",
+  "description": "Todo List component for Workbench - Inspired by Wunderlist",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "watch": "tsc --watch",
+    "dev": "vite"
+  },
+  "keywords": [
+    "workbench",
+    "component",
+    "todolist",
+    "wunderlist"
+  ],
+  "author": "ZC",
+  "license": "MIT",
+  "devDependencies": {
+    "typescript": "^5.0.0",
+    "vite": "^5.0.0"
+  }
+}

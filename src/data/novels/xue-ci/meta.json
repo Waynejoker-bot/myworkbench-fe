@@ -1,0 +1,23 @@
+{
+  "id": "xue-ci",
+  "title": "雪刺",
+  "author": "铜声瘦骨",
+  "cover": "/novels/xue-ci/cover.jpg",
+  "description": "红尘为炉情为火，炼尽千般求不得。江湖原本只一梦，梦尽花落两无声。从嘉佑三年的积雪之下，灵蛇吐信一般，倏忽刺出的一剑，究竟刺破的是何种的因缘？",
+  "chapterCount": 1,
+  "wordCount": 4098,
+  "status": "ongoing",
+  "createdAt": "2026-02-20",
+  "updatedAt": "2026-02-20",
+  "tags": ["武侠", "江湖", "古风"],
+  "chapters": [
+    {
+      "id": "chapter-01",
+      "bookId": "xue-ci",
+      "title": "第一章 寒光平地起",
+      "order": 1,
+      "wordCount": 4098,
+      "createdAt": "2026-02-20"
+    }
+  ]
+}

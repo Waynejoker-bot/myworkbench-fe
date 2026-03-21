@@ -1,0 +1,16 @@
+{
+  "name": "workbench-component-file-browser",
+  "version": "1.1.0",
+  "description": "File browser component for Workbench",
+  "type": "module",
+  "main": "./index.ts",
+  "scripts": {},
+  "keywords": [
+    "workbench",
+    "component",
+    "file-browser",
+    "filesystem"
+  ],
+  "author": "ZC",
+  "license": "MIT"
+}

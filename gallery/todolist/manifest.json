@@ -1,0 +1,36 @@
+{
+  "name": "todolist",
+  "version": "1.0.1",
+  "description": "一个优雅的待办事项管理组件，灵感来自 Wunderlist",
+  "author": "ZC",
+  "icon": "✓",
+  "entry": "./index.js",
+  "capabilities": {
+    "required": [],
+    "optional": [
+      "host:ui:notify",
+      "host:ui:resize",
+      "host:ui:close",
+      "host:ui:focus"
+    ],
+    "provided": []
+  },
+  "permissions": [
+    "network:request"
+  ],
+  "configSchema": {
+    "type": "object",
+    "properties": {
+      "apiBaseUrl": {
+        "type": "string",
+        "default": "",
+        "description": "Todo API 基础 URL（默认使用当前域名）"
+      },
+      "theme": {
+        "type": "string",
+        "enum": ["light", "dark"],
+        "default": "light"
+      }
+    }
+  }
+}

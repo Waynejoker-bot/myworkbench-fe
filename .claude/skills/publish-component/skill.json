@@ -1,0 +1,12 @@
+{
+  "name": "publish-component",
+  "description": "发布组件到正确的市场目录 /opt/market",
+  "command": ".claude/skills/publish-component/publish-component.sh",
+  "arguments": [
+    {
+      "name": "component",
+      "description": "组件名称 (例如: file-browser, hello-world)",
+      "required": true
+    }
+  ]
+}
