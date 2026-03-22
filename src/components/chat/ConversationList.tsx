@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback } from "react";
-import { MoreHorizontal, Trash2, Bot, Loader2 } from "lucide-react";
+import { MoreHorizontal, Trash2, Loader2, Pencil } from "lucide-react";
+import { AgentAvatar } from "@/components/ui/AgentAvatar";
 import type { Conversation } from "@/hooks/useConversations";
 import type { Agent } from "@/api/agent";
 
@@ -41,6 +42,7 @@ export function ConversationList({
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editValue, setEditValue] = useState("");
+  const [editOriginalValue, setEditOriginalValue] = useState("");
   const editRef = useRef<HTMLInputElement>(null);
 
   const handleDelete = async (conversationId: string) => {
@@ -53,19 +55,13 @@ export function ConversationList({
     setShowMenu(null);
   };
 
-  const handleDoubleClick = useCallback((conversationId: string, currentTitle: string) => {
-    setEditingId(conversationId);
-    setEditValue(currentTitle);
-    // Focus the input after render
-    setTimeout(() => editRef.current?.focus(), 0);
-  }, []);
-
   const saveEdit = useCallback(async () => {
-    if (editingId && editValue.trim() && onUpdateTitle) {
-      await onUpdateTitle(editingId, editValue.trim());
+    const trimmed = editValue.trim();
+    if (editingId && trimmed && trimmed !== editOriginalValue && onUpdateTitle) {
+      await onUpdateTitle(editingId, trimmed);
     }
     setEditingId(null);
-  }, [editingId, editValue, onUpdateTitle]);
+  }, [editingId, editValue, editOriginalValue, onUpdateTitle]);
 
   const handleEditBlur = useCallback(() => {
     saveEdit();
@@ -128,20 +124,11 @@ export function ConversationList({
                   <div className="flex items-start gap-3">
                     {/* Avatar(s) */}
                     <div className="relative shrink-0">
-                      <div
-                        className="w-10 h-10 rounded-lg flex items-center justify-center"
-                        style={{
-                          background: "#f3f4f6",
-                          border: "1px solid #d1d5db",
-                        }}
-                      >
-                        <Bot
-                          className="h-5 w-5"
-                          style={{
-                            color: isActive ? "#0ea5e9" : "#64748b",
-                          }}
-                        />
-                      </div>
+                      <AgentAvatar
+                        agentId={conversation.agentId}
+                        avatar={agent?.config?.avatar}
+                        size={40}
+                      />
                       {multiAgent && (
                         <span
                           className="absolute -bottom-1 -right-1 text-xs font-medium rounded px-1"
@@ -162,30 +149,14 @@ export function ConversationList({
                     <div className="flex-1 min-w-0">
                       {/* Row 1: Title + Time + Menu */}
                       <div className="flex items-center justify-between gap-2">
-                        {editingId === conversation.id ? (
-                          <input
-                            ref={editRef}
-                            value={editValue}
-                            onChange={(e) => setEditValue(e.target.value)}
-                            className="text-sm font-medium truncate flex-1 bg-transparent outline-none"
-                            style={{
-                              color: "#111827",
-                              borderBottom: "1px solid #0ea5e9",
-                            }}
-                            onBlur={handleEditBlur}
-                            onKeyDown={handleEditKeyDown}
-                          />
-                        ) : (
-                          <h3
-                            className="font-medium text-sm truncate flex-1"
-                            style={{
-                              color: isActive ? "#111827" : "#111827",
-                            }}
-                            onDoubleClick={() => handleDoubleClick(conversation.id, conversation.title)}
-                          >
-                            {agent?.name || conversation.title || "新对话"}
-                          </h3>
-                        )}
+                        <h3
+                          className="font-medium text-sm truncate flex-1"
+                          style={{
+                            color: "#111827",
+                          }}
+                        >
+                          {agent?.name || conversation.title || "新对话"}
+                        </h3>
                         <div className="flex items-center gap-1 shrink-0">
                           <span className="text-xs" style={{ color: "#475569" }}>
                             {formatTime(conversation.timestamp)}
@@ -227,13 +198,30 @@ export function ConversationList({
                         </div>
                       </div>
 
-                      {/* Row 2: Conversation title */}
-                      <p
-                        className="text-xs truncate mt-0.5"
-                        style={{ color: "#64748b" }}
-                      >
-                        {conversation.title}
-                      </p>
+                      {/* Row 2: Conversation title (editable) */}
+                      {editingId === conversation.id ? (
+                        <input
+                          ref={editRef}
+                          value={editValue}
+                          onChange={(e) => setEditValue(e.target.value)}
+                          maxLength={50}
+                          className="text-xs mt-0.5 w-full bg-transparent outline-none"
+                          style={{
+                            color: "#64748b",
+                            borderBottom: "1px solid #0ea5e9",
+                          }}
+                          onBlur={handleEditBlur}
+                          onKeyDown={handleEditKeyDown}
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                      ) : (
+                        <p
+                          className="text-xs truncate mt-0.5"
+                          style={{ color: "#64748b" }}
+                        >
+                          {conversation.title}
+                        </p>
+                      )}
 
                       {/* Row 3: Last message preview */}
                       {conversation.lastMessage && (
@@ -257,6 +245,28 @@ export function ConversationList({
                       border: "1px solid #d1d5db",
                     }}
                   >
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setShowMenu(null);
+                        setEditingId(conversation.id);
+                        setEditValue(conversation.title);
+                        setEditOriginalValue(conversation.title);
+                        setTimeout(() => editRef.current?.select(), 0);
+                      }}
+                      className="w-full px-3 py-2 text-left text-sm flex items-center gap-2 transition-colors"
+                      style={{ color: "#111827" }}
+                      onMouseEnter={(e) =>
+                        (e.currentTarget.style.background = "#e5e7eb")
+                      }
+                      onMouseLeave={(e) =>
+                        (e.currentTarget.style.background = "transparent")
+                      }
+                    >
+                      <Pencil className="h-4 w-4" />
+                      重命名
+                    </button>
+                    <div style={{ height: 1, background: "#d1d5db", margin: "2px 0" }} />
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
