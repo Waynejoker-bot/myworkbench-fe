@@ -275,6 +275,7 @@ export function MessageBubble({
                   return <ToolCallTimeline key={`tg-${gIdx}`} blocks={group.blocks as ToolCallBlock[]} />;
                 }
                 const block = group.blocks[0];
+                if (!block) return null;
                 return (
                   <ContentBlockRenderer
                     key={block.id || gIdx}
