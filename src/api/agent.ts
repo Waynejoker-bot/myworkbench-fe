@@ -15,6 +15,7 @@ export interface Agent {
   llm_provider?: string;
   llm_model?: string;
   max_rounds?: number;
+  cwd?: string;
   tools?: string[];
   options?: Record<string, unknown>;
   config?: AgentConfig;
@@ -98,6 +99,7 @@ export async function createChannel(data: {
   name: string;
   description?: string;
   llm_model?: string;
+  cwd?: string;
   tools?: string[];
 }): Promise<Agent> {
   return apiClient.post<Agent>('/msapi/channels', data);
@@ -109,7 +111,9 @@ export async function createChannel(data: {
 export async function updateChannel(agentId: string, data: {
   name?: string;
   description?: string;
+  prompt?: string;
   llm_model?: string;
+  cwd?: string;
   tools?: string[];
   enabled?: boolean;
 }): Promise<Agent> {
