@@ -1,5 +1,6 @@
 import { useMemo, useState, useCallback, useEffect, useRef } from 'react';
-import { MessageSquare, Bot, Copy, Check, Loader2, AlertCircle, Clock, ChevronDown, ChevronUp } from 'lucide-react';
+import { MessageSquare, Copy, Check, Loader2, AlertCircle, Clock, ChevronDown, ChevronUp } from 'lucide-react';
+import { AgentAvatar } from '@/components/ui/AgentAvatar';
 import type { UIMessage } from '@/types/message-station';
 import { MessageStatus, DeliveryStatus } from '@/types/message-station';
 import type { AnyContentBlock, ToolCallBlock, TextBlock, MarkdownBlock } from '@/types/content-block';
@@ -153,16 +154,16 @@ export function MessageBubble({
       {/* Agent Avatar - LEFT side */}
       {!isUser && (
         <div className="flex-shrink-0">
-          <div
-            className="w-8 h-8 rounded-lg flex items-center justify-center"
-            style={{ backgroundColor: '#f3f4f6', border: '1px solid #d1d5db' }}
-          >
-            {isSystem ? (
+          {isSystem ? (
+            <div
+              className="w-8 h-8 rounded-lg flex items-center justify-center"
+              style={{ backgroundColor: '#f3f4f6', border: '1px solid #d1d5db' }}
+            >
               <MessageSquare className="h-4 w-4" style={{ color: '#0ea5e9' }} />
-            ) : (
-              <Bot className="h-4 w-4" style={{ color: '#0ea5e9' }} />
-            )}
-          </div>
+            </div>
+          ) : (
+            <AgentAvatar agentId={message.source} avatar={agentConfig?.avatar} size={32} />
+          )}
         </div>
       )}
 

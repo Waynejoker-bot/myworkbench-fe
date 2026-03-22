@@ -300,7 +300,7 @@ export function AgentPanel({ sessionId: _sessionId, agentId: _agentId, isActive:
           {isEditing && (
             <div style={{ marginBottom: 16 }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-                <div style={{ fontSize: 12, color: '#64748b' }}>描述</div>
+                <div style={{ fontSize: 12, color: '#64748b' }}>System Prompt</div>
                 <button
                   onClick={() => {
                     setModalPromptValue(editPrompt)

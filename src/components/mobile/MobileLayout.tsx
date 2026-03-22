@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback } from "react";
 import { ArrowLeft, Plus, Bot, FolderOpen, Wrench, ChevronRight, ChevronDown, Loader2 } from "lucide-react";
+import { AgentAvatar } from "@/components/ui/AgentAvatar";
 import { BottomTabBar } from "./BottomTabBar";
 import { ConversationList } from "@/components/chat/ConversationList";
 import { ChatMessages } from "@/components/chat/ChatMessages";
@@ -218,13 +219,11 @@ export function MobileLayout({
                   color: "#111827",
                 }}
               >
-                <Bot
-                  style={{
-                    width: 20,
-                    height: 20,
-                    color: agent.enabled !== false ? "#0ea5e9" : "#64748b",
-                    flexShrink: 0,
-                  }}
+                <AgentAvatar
+                  agentId={agent.agent_id}
+                  avatar={agent.config?.avatar}
+                  size={28}
+                  className="shrink-0"
                 />
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: 14, fontWeight: 500 }}>{agent.name}</div>

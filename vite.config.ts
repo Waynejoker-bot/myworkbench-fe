@@ -13,7 +13,6 @@ export default defineConfig({
     port: 5179,
     strictPort: true,
     host: true,
-    allowedHosts: true,
     proxy: {
       "/market": {
         target: "https://arm.hqdx.store",

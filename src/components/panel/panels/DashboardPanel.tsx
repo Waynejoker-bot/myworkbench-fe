@@ -1,5 +1,6 @@
 import { useDashboard } from '@/hooks/useDashboard'
-import { RefreshCw, Bot, Loader2 } from 'lucide-react'
+import { RefreshCw, Loader2 } from 'lucide-react'
+import { AgentAvatar } from '@/components/ui/AgentAvatar'
 
 export function DashboardPanel() {
   const { counts, activeTasks, recentActivity, isLoading, refresh } = useDashboard()
@@ -66,18 +67,11 @@ export function DashboardPanel() {
                         gap: 8,
                       }}
                     >
-                      <div style={{
-                        width: 28,
-                        height: 28,
-                        borderRadius: 6,
-                        background: 'rgba(245, 158, 11, 0.1)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        flexShrink: 0,
-                      }}>
-                        <Bot style={{ width: 14, height: 14, color: '#f59e0b' }} />
-                      </div>
+                      <AgentAvatar
+                        agentId={task.agentId}
+                        size={28}
+                        className="shrink-0"
+                      />
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ fontSize: 12, color: '#111827', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                           {task.agentName}

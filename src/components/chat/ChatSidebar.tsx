@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from "react";
-import { Plus, ChevronLeft, ChevronRight, Loader2, Bot } from "lucide-react";
+import { Plus, ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
+import { AgentAvatar } from "@/components/ui/AgentAvatar";
 import { ConversationList } from "./ConversationList";
 import type { Conversation } from "@/hooks/useConversations";
 import type { Agent } from "@/api/agent";
@@ -82,7 +83,7 @@ export function ChatSidebar({
           <div className="w-8 h-8 rounded-full overflow-hidden">
             <img src="/head/head.png" alt="avatar" className="w-full h-full object-cover" />
           </div>
-          <span style={{ color: "#111827" }} className="font-semibold">对话</span>
+          <span style={{ color: "#111827" }} className="font-semibold">引力引擎 ARM 系统</span>
         </div>
         <button
           onClick={() => onSetSidebarCollapsed(true)}
@@ -158,21 +159,13 @@ export function ChatSidebar({
                     onMouseEnter={(e) => (e.currentTarget.style.background = "#e5e7eb")}
                     onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
                   >
-                    {/* Icon container */}
-                    <div
-                      className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0"
-                      style={{
-                        background: "#f3f4f6",
-                        border: "1px solid #d1d5db",
-                      }}
-                    >
-                      <Bot
-                        className="h-5 w-5"
-                        style={{
-                          color: agent.enabled !== false ? "#0ea5e9" : "#64748b",
-                        }}
-                      />
-                    </div>
+                    {/* Agent Avatar */}
+                    <AgentAvatar
+                      agentId={agent.agent_id}
+                      avatar={agent.config?.avatar}
+                      size={36}
+                      className="shrink-0"
+                    />
                     {/* Name + Description */}
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">

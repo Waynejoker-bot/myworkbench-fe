@@ -329,7 +329,8 @@ export default function ChatBoxPage() {
             {/* Chat top bar - current Agent info */}
             {activeConversationId && (
               <div style={{
-                padding: '10px 24px',
+                padding: '0 24px',
+                height: 56,
                 borderBottom: '1px solid #d1d5db',
                 display: 'flex',
                 alignItems: 'center',

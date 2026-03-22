@@ -16,7 +16,7 @@ export function PanelTabBar({ tabs, activeTabId, onTabSelect, onToggleCollapse }
         alignItems: 'center',
         background: '#f9fafb',
         borderBottom: '1px solid #d1d5db',
-        height: 40,
+        height: 56,
         flexShrink: 0,
       }}
     >
@@ -32,7 +32,7 @@ export function PanelTabBar({ tabs, activeTabId, onTabSelect, onToggleCollapse }
                 alignItems: 'center',
                 gap: 6,
                 padding: '0 14px',
-                height: 40,
+                height: 56,
                 background: 'transparent',
                 border: 'none',
                 borderBottom: isActive ? '2px solid #0ea5e9' : '2px solid transparent',

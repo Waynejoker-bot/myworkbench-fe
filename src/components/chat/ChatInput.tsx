@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, forwardRef, useImperativeHandle, useMemo, useCallback } from "react";
-import { Send, Square, Bot, AtSign, FileText, X, Plus, Image, File, FileType } from "lucide-react";
+import { Send, Square, AtSign, FileText, X, Plus, Image, File, FileType } from "lucide-react";
+import { AgentAvatar } from "@/components/ui/AgentAvatar";
 import type { Agent } from "@/api/agent";
 import { uploadImage } from "@/api/image";
 import { convertWordToMarkdown, isWordDocument } from "@/utils/word-to-markdown";
@@ -421,12 +422,12 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(function ChatI
                       backgroundColor: index === mentionSelectedIndex ? '#e5e7eb' : 'transparent',
                     }}
                   >
-                    <div
-                      className="w-6 h-6 rounded-lg flex items-center justify-center flex-shrink-0"
-                      style={{ backgroundColor: '#f3f4f6', border: '1px solid #d1d5db' }}
-                    >
-                      <Bot className="h-3.5 w-3.5" style={{ color: '#0ea5e9' }} />
-                    </div>
+                    <AgentAvatar
+                      agentId={agent.agent_id}
+                      avatar={agent.config?.avatar}
+                      size={24}
+                      className="flex-shrink-0"
+                    />
                     <div className="flex-1 min-w-0 flex items-center gap-1.5 overflow-hidden">
                       <span className="text-sm shrink-0" style={{ color: '#111827' }}>
                         {agent.name}

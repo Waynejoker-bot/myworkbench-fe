@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 280 100" width="280" height="100">
+  <defs>
+    <linearGradient id="textGrad2" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#0ea5e9" />
+      <stop offset="100%" style="stop-color:#38bdf8" />
+    </linearGradient>
+    <linearGradient id="hexGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#0ea5e9;stop-opacity:0.3" />
+      <stop offset="100%" style="stop-color:#38bdf8;stop-opacity:0.1" />
+    </linearGradient>
+    <filter id="glow2">
+      <feGaussianBlur stdDeviation="3" result="blur" />
+      <feMerge>
+        <feMergeNode in="blur" />
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
+    </filter>
+    <clipPath id="hexClip">
+      <polygon points="140,5 240,25 260,70 200,95 80,95 20,70 40,25" />
+    </clipPath>
+  </defs>
+
+  <!-- Hexagonal border -->
+  <polygon points="140,5 245,27 265,73 205,97 75,97 15,73 35,27"
+    fill="none" stroke="url(#textGrad2)" stroke-width="1.5" opacity="0.4" />
+  <polygon points="140,10 240,30 258,72 200,93 80,93 22,72 40,30"
+    fill="#070a11" />
+
+  <!-- Inner hex glow -->
+  <polygon points="140,10 240,30 258,72 200,93 80,93 22,72 40,30"
+    fill="url(#hexGrad)" opacity="0.3" />
+
+  <!-- Corner dots -->
+  <circle cx="140" cy="5" r="2.5" fill="#0ea5e9" opacity="0.7" />
+  <circle cx="245" cy="27" r="2" fill="#0ea5e9" opacity="0.5" />
+  <circle cx="265" cy="73" r="2" fill="#0ea5e9" opacity="0.5" />
+  <circle cx="205" cy="97" r="2.5" fill="#0ea5e9" opacity="0.7" />
+  <circle cx="75" cy="97" r="2.5" fill="#0ea5e9" opacity="0.7" />
+  <circle cx="15" cy="73" r="2" fill="#0ea5e9" opacity="0.5" />
+  <circle cx="35" cy="27" r="2" fill="#0ea5e9" opacity="0.5" />
+
+  <!-- ARM Text -->
+  <text x="140" y="67" text-anchor="middle" font-family="'SF Pro Display', 'Inter', 'Segoe UI', sans-serif" font-size="52" font-weight="800" letter-spacing="10" fill="url(#textGrad2)" filter="url(#glow2)">ARM</text>
+</svg>
