@@ -297,6 +297,12 @@ export function MobileLayout({
         >
           <ArrowLeft style={{ width: 22, height: 22 }} />
         </button>
+        <AgentAvatar
+          agentId={activeAgent?.agent_id}
+          avatar={activeAgent?.config?.avatar}
+          size={28}
+          className="shrink-0"
+        />
         <div style={{ flex: 1, minWidth: 0 }}>
           <div
             style={{

@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { ChevronDown, Bot } from "lucide-react";
+import { ChevronDown } from "lucide-react";
 import { MobileLayout } from "@/components/mobile/MobileLayout";
 import { useConversations, sortByTimestamp } from "@/hooks/useConversations";
 import { useChatMessages } from "@/hooks/useChatMessages";
@@ -12,6 +12,7 @@ import { ChatInput, ChatInputRef } from "@/components/chat/ChatInput";
 import { PanelProvider } from "@/contexts/PanelContext";
 import { PanelShell } from "@/components/panel/PanelShell";
 import { builtinPanels } from "@/components/panel/built-in-panels";
+import { AgentAvatar } from "@/components/ui/AgentAvatar";
 
 export default function ChatBoxPage() {
   const { isAuthenticated, needsLogin } = useAuth();
@@ -338,17 +339,11 @@ export default function ChatBoxPage() {
                 flexShrink: 0,
                 background: '#f9fafb',
               }}>
-                <div style={{
-                  width: 32, height: 32,
-                  background: '#f3f4f6',
-                  border: '1px solid #d1d5db',
-                  borderRadius: 8,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}>
-                  <Bot style={{ width: 16, height: 16, color: '#0ea5e9' }} />
-                </div>
+                <AgentAvatar
+                  agentId={selectedAgentId}
+                  avatar={agentConfigs.get(selectedAgentId)?.avatar}
+                  size={32}
+                />
                 <div>
                   <div style={{ fontWeight: 600, fontSize: 14, color: '#111827' }}>
                     {agentConfigs.get(selectedAgentId)?.name || selectedAgentId || '选择 Agent'}
