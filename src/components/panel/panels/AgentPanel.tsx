@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback, useEffect, useMemo } from 'react'
-import { Bot, ChevronRight, ArrowLeft, Pencil, Trash2, AlertTriangle, Loader2, Plus, FileText, ChevronDown, ChevronUp, X } from 'lucide-react'
+import { ChevronRight, ArrowLeft, Pencil, Trash2, AlertTriangle, Loader2, Plus, FileText, ChevronDown, ChevronUp, X, Maximize2 } from 'lucide-react'
+import { AgentAvatar } from '@/components/ui/AgentAvatar'
 import { useAgents } from '@/hooks/useAgents'
 import { useToast } from '@/contexts/ToastContext'
 import { deleteChannel, updateChannel, createChannel, getAgent } from '@/api/agent'
@@ -92,7 +93,10 @@ export function AgentPanel({ sessionId: _sessionId, agentId: _agentId, isActive:
   const [isEditing, setIsEditing] = useState(false)
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [editName, setEditName] = useState('')
-  const [editDescription, setEditDescription] = useState('')
+  const [editPrompt, setEditPrompt] = useState('')
+  const [showPromptModal, setShowPromptModal] = useState(false)
+  const [modalPromptValue, setModalPromptValue] = useState('')
+  const [editCwd, setEditCwd] = useState('')
   const [isDeleting, setIsDeleting] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [showCreateForm, setShowCreateForm] = useState(false)
@@ -200,11 +204,12 @@ export function AgentPanel({ sessionId: _sessionId, agentId: _agentId, isActive:
   }, [])
 
   const startEdit = useCallback(() => {
-    if (!selectedAgent) return
+    if (!selectedAgent || !agentDetail) return
     setEditName(selectedAgent.name)
-    setEditDescription(selectedAgent.config?.description ?? '')
+    setEditPrompt(agentDetail.prompt || '')
+    setEditCwd(agentDetail?.cwd ?? selectedAgent.cwd ?? '')
     setIsEditing(true)
-  }, [selectedAgent])
+  }, [selectedAgent, agentDetail])
 
   // Detail view
   if (selectedAgent) {
@@ -226,7 +231,7 @@ export function AgentPanel({ sessionId: _sessionId, agentId: _agentId, isActive:
           <span style={{ flex: 1, fontSize: 14, fontWeight: 600, color: '#111827' }}>Agent 详情</span>
           {!isEditing && (
             <>
-              <button onClick={startEdit} style={{ background: 'transparent', border: 'none', color: '#64748b', cursor: 'pointer', padding: 4, display: 'flex' }}>
+              <button onClick={() => { if (agentDetail) startEdit() }} style={{ background: 'transparent', border: 'none', color: '#64748b', cursor: agentDetail ? 'pointer' : 'not-allowed', padding: 4, display: 'flex', opacity: agentDetail ? 1 : 0.4 }}>
                 <Pencil style={{ width: 15, height: 15 }} />
               </button>
               <button onClick={() => setShowDeleteModal(true)} style={{ background: 'transparent', border: 'none', color: '#64748b', cursor: 'pointer', padding: 4, display: 'flex' }}>
@@ -238,19 +243,13 @@ export function AgentPanel({ sessionId: _sessionId, agentId: _agentId, isActive:
 
         {/* Content */}
         <div style={{ flex: 1, overflow: 'auto', padding: 16 }}>
-          {/* Icon */}
-          <div style={{
-            width: 64,
-            height: 64,
-            borderRadius: 12,
-            background: '#f3f4f6',
-            border: '1px solid #d1d5db',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            margin: '0 auto 16px',
-          }}>
-            <Bot style={{ width: 32, height: 32, color: '#0ea5e9' }} />
+          {/* Agent Avatar */}
+          <div style={{ margin: '0 auto 16px', width: 64, height: 64 }}>
+            <AgentAvatar
+              agentId={selectedAgent.agent_id}
+              avatar={selectedAgent.config?.avatar}
+              size={64}
+            />
           </div>
 
           {/* Name */}
@@ -297,14 +296,33 @@ export function AgentPanel({ sessionId: _sessionId, agentId: _agentId, isActive:
             </div>
           </div>
 
-          {/* Description (edit mode) */}
+          {/* Description / System Prompt (edit mode) */}
           {isEditing && (
             <div style={{ marginBottom: 16 }}>
-              <div style={{ fontSize: 12, color: '#64748b', marginBottom: 6 }}>描述</div>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                <div style={{ fontSize: 12, color: '#64748b' }}>描述</div>
+                <button
+                  onClick={() => {
+                    setModalPromptValue(editPrompt)
+                    setShowPromptModal(true)
+                  }}
+                  style={{
+                    background: 'transparent',
+                    border: 'none',
+                    color: '#64748b',
+                    cursor: 'pointer',
+                    padding: 2,
+                    display: 'flex',
+                  }}
+                  title="全屏编辑"
+                >
+                  <Maximize2 style={{ width: 14, height: 14 }} />
+                </button>
+              </div>
               <textarea
-                value={editDescription}
-                onChange={e => setEditDescription(e.target.value)}
-                rows={3}
+                value={editPrompt}
+                onChange={e => setEditPrompt(e.target.value)}
+                rows={5}
                 style={{
                   width: '100%',
                   padding: '8px 12px',
@@ -315,6 +333,30 @@ export function AgentPanel({ sessionId: _sessionId, agentId: _agentId, isActive:
                   fontSize: 13,
                   resize: 'vertical',
                   outline: 'none',
+                  fontFamily: 'monospace',
+                }}
+              />
+            </div>
+          )}
+
+          {/* Working directory (edit mode) */}
+          {isEditing && (
+            <div style={{ marginBottom: 16 }}>
+              <div style={{ fontSize: 12, color: '#64748b', marginBottom: 6 }}>工作目录 (cwd)</div>
+              <input
+                value={editCwd}
+                onChange={e => setEditCwd(e.target.value)}
+                placeholder="/opt/claude"
+                style={{
+                  width: '100%',
+                  padding: '8px 12px',
+                  background: '#f3f4f6',
+                  border: '1px solid #d1d5db',
+                  borderRadius: 6,
+                  color: '#111827',
+                  fontSize: 13,
+                  outline: 'none',
+                  boxSizing: 'border-box',
                 }}
               />
             </div>
@@ -402,16 +444,6 @@ export function AgentPanel({ sessionId: _sessionId, agentId: _agentId, isActive:
             </div>
           )}
 
-          {/* Description (read-only, show if exists) */}
-          {!isEditing && selectedAgent.config?.description && (
-            <div style={{ marginBottom: 16 }}>
-              <div style={{ fontSize: 12, color: '#64748b', marginBottom: 6 }}>描述</div>
-              <div style={{ fontSize: 13, color: '#111827', lineHeight: 1.5 }}>
-                {selectedAgent.config.description}
-              </div>
-            </div>
-          )}
-
           {/* Skills / tools */}
           {selectedAgent.tools && selectedAgent.tools.length > 0 && (
             <div style={{ marginBottom: 16 }}>
@@ -439,6 +471,7 @@ export function AgentPanel({ sessionId: _sessionId, agentId: _agentId, isActive:
             <div style={{ fontSize: 12, color: '#475569', lineHeight: 1.8 }}>
               <div>agent_id: <span style={{ color: '#111827' }}>{selectedAgent.agent_id}</span></div>
               {selectedAgent.llm_model && <div>model: <span style={{ color: '#111827' }}>{selectedAgent.llm_model}</span></div>}
+              {(agentDetail?.cwd || selectedAgent.cwd) && <div>cwd: <span style={{ color: '#111827' }}>{agentDetail?.cwd || selectedAgent.cwd}</span></div>}
             </div>
           </div>
 
@@ -504,7 +537,10 @@ export function AgentPanel({ sessionId: _sessionId, agentId: _agentId, isActive:
                 onClick={async () => {
                   setIsSaving(true)
                   try {
-                    await updateChannel(selectedAgent.agent_id, { name: editName, description: editDescription })
+                    await updateChannel(selectedAgent.agent_id, { name: editName, prompt: editPrompt, cwd: editCwd || undefined })
+                    // Re-fetch agent detail to update non-edit mode display
+                    const updated = await getAgent(selectedAgent.agent_id)
+                    setAgentDetail(updated)
                     showToast('Agent 已更新', 'success')
                     setIsEditing(false)
                   } catch {
@@ -534,6 +570,94 @@ export function AgentPanel({ sessionId: _sessionId, agentId: _agentId, isActive:
                 {isSaving && <Loader2 style={{ width: 14, height: 14, animation: 'spin 1s linear infinite' }} />}
                 保存
               </button>
+            </div>
+          )}
+
+          {/* Full-screen prompt edit modal */}
+          {showPromptModal && (
+            <div
+              style={{ position: 'fixed', inset: 0, zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0, 0, 0, 0.6)' }}
+              onClick={() => setShowPromptModal(false)}
+            >
+              <div
+                style={{
+                  background: '#f9fafb',
+                  border: '1px solid #d1d5db',
+                  borderRadius: 12,
+                  padding: 20,
+                  width: '100%',
+                  maxWidth: 768,
+                  maxHeight: '80vh',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  margin: '0 16px',
+                }}
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div style={{ fontSize: 15, fontWeight: 600, color: '#111827', marginBottom: 12 }}>
+                  编辑 System Prompt
+                </div>
+                <textarea
+                  autoFocus
+                  value={modalPromptValue}
+                  onChange={(e) => setModalPromptValue(e.target.value)}
+                  style={{
+                    flex: 1,
+                    width: '100%',
+                    minHeight: 300,
+                    padding: '12px',
+                    background: '#f3f4f6',
+                    border: '1px solid #d1d5db',
+                    borderRadius: 6,
+                    color: '#111827',
+                    fontSize: 13,
+                    fontFamily: 'monospace',
+                    resize: 'vertical',
+                    outline: 'none',
+                    whiteSpace: 'pre-wrap',
+                    lineHeight: 1.6,
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Escape') {
+                      setShowPromptModal(false)
+                    }
+                  }}
+                />
+                <div style={{ display: 'flex', gap: 8, marginTop: 12, justifyContent: 'flex-end' }}>
+                  <button
+                    onClick={() => setShowPromptModal(false)}
+                    style={{
+                      padding: '8px 20px',
+                      background: 'transparent',
+                      border: '1px solid #d1d5db',
+                      borderRadius: 6,
+                      color: '#111827',
+                      fontSize: 13,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    取消
+                  </button>
+                  <button
+                    onClick={() => {
+                      setEditPrompt(modalPromptValue)
+                      setShowPromptModal(false)
+                    }}
+                    style={{
+                      padding: '8px 20px',
+                      background: '#0ea5e9',
+                      border: 'none',
+                      borderRadius: 6,
+                      color: '#fff',
+                      fontSize: 13,
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    确认
+                  </button>
+                </div>
+              </div>
             </div>
           )}
         </div>
@@ -741,19 +865,12 @@ export function AgentPanel({ sessionId: _sessionId, agentId: _agentId, isActive:
               onMouseEnter={e => (e.currentTarget.style.background = '#e5e7eb')}
               onMouseLeave={e => (e.currentTarget.style.background = '#f3f4f6')}
             >
-              <div style={{
-                width: 40,
-                height: 40,
-                borderRadius: 8,
-                background: '#f3f4f6',
-                border: '1px solid #d1d5db',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                flexShrink: 0,
-              }}>
-                <Bot style={{ width: 20, height: 20, color: '#0ea5e9' }} />
-              </div>
+              <AgentAvatar
+                agentId={agent.agent_id}
+                avatar={agent.config?.avatar}
+                size={40}
+                className="shrink-0"
+              />
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontSize: 13, fontWeight: 600, color: '#111827', marginBottom: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {agent.name}
