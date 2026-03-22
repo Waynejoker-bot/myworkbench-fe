@@ -11,13 +11,13 @@ interface AgentAvatarProps {
 const BASE_URL = import.meta.env.BASE_URL || '/';
 
 /**
- * Agent avatar component - displays SVG avatar from /avatars/{agentId}.svg
+ * Agent avatar component - displays avatar from /avatars/{agentId}.png
  * Falls back to Bot icon if no avatar is available
  */
 export function AgentAvatar({ agentId, avatar, size = 32, className = '' }: AgentAvatarProps) {
   const [hasError, setHasError] = useState(false);
   // Use config avatar URL, or fallback to static file by agent ID
-  const avatarUrl = avatar || (agentId ? `${BASE_URL}avatars/${agentId}.svg` : null);
+  const avatarUrl = avatar || (agentId ? `${BASE_URL}avatars/${agentId}.png` : null);
   const iconSize = Math.round(size * 0.5);
 
   if (avatarUrl && !hasError) {
