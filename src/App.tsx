@@ -1,6 +1,8 @@
 import { RouterProvider } from "react-router-dom";
 import { router } from "./router";
 import { AuthProvider } from "./contexts/AuthContext";
+import { ToastProvider } from "./contexts/ToastContext";
+import { ToastContainer } from "./components/ui/Toast";
 import { useEffect } from "react";
 
 // 使用 router.subscribe 监听路由变化
@@ -19,9 +21,12 @@ function App() {
   useBaiduTongji();
 
   return (
-    <AuthProvider>
-      <RouterProvider router={router} />
-    </AuthProvider>
+    <ToastProvider>
+      <ToastContainer />
+      <AuthProvider>
+        <RouterProvider router={router} />
+      </AuthProvider>
+    </ToastProvider>
   );
 }
 

@@ -3,7 +3,7 @@
  * 处理与消息队列服务的所有交互
  */
 
-import type { MessagesPageResponse } from '@/workbench/types/message-station';
+import type { MessagesPageResponse } from '@/types/message-station';
 
 const MSAPI_BASE = '/msapi';
 

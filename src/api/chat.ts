@@ -237,6 +237,17 @@ export function startPolling(
   eventSource.onerror = (err) => {
     console.error('[SSE] Connection error:', err);
     console.error('[SSE] ReadyState:', eventSource?.readyState, '(0=CONNECTING, 1=OPEN, 2=CLOSED)');
+
+    // Auto-reconnect after 3 seconds if connection was lost
+    if (eventSource?.readyState === EventSource.CLOSED) {
+      console.log('[SSE] Connection closed, attempting reconnect in 3s...');
+      setTimeout(() => {
+        if (!eventSource || eventSource.readyState === EventSource.CLOSED) {
+          startPolling(sessionId, lastUpdateTime, onMessage, onConnected, onError);
+        }
+      }, 3000);
+    }
+
     onError?.(new Error('SSE connection error'));
   };
 
@@ -259,4 +270,19 @@ export function stopPolling() {
  */
 export function isPolling(): boolean {
   return eventSource !== null && eventSource.readyState === EventSource.OPEN;
+}
+
+/**
+ * Cancel an active Agent session (fire-and-forget).
+ * Does not throw — SSE disconnect is the primary stop mechanism.
+ */
+export async function cancelSession(sessionId: string): Promise<void> {
+  try {
+    await fetch(`/msapi/sessions/${sessionId}/cancel`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+    });
+  } catch (error) {
+    console.warn('[cancelSession] Failed:', sessionId, error);
+  }
 }

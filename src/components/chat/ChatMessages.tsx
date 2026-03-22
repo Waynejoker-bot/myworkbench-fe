@@ -1,8 +1,8 @@
 import { useMemo } from "react";
 import { MessageBubble } from "./message";
-import type { UIMessage, ReplyRelation, MessageStatus, DeliveryStatus } from "@/workbench/types/message-station";
-import { ContentType } from "@/workbench/types/content-block";
-import { sortMessagesByTime } from "@/workbench/utils/message-ordering";
+import type { UIMessage, ReplyRelation, MessageStatus, DeliveryStatus } from "@/types/message-station";
+import { ContentType } from "@/types/content-block";
+import { sortMessagesByTime } from "@/utils/message-ordering";
 
 interface AgentConfig {
   name?: string;

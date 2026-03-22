@@ -7,8 +7,8 @@
 
 import { useState, useMemo } from 'react';
 import { ChevronDown, ChevronRight, Copy, Check } from 'lucide-react';
-import type { ToolCallBlock } from '@/workbench/types/content-block';
-import { ContentType } from '@/workbench/types/content-block';
+import type { ToolCallBlock } from '@/types/content-block';
+import { ContentType } from '@/types/content-block';
 import { ToolExecutionStatus } from '@/types/toolConfig';
 import {
   getStatusColorClasses,

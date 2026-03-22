@@ -4,10 +4,11 @@ import { useState } from "react";
 interface BreadcrumbProps {
   prefix: string;
   path: string;
+  rootPath?: string;
   onNavigate: (prefix: string, path: string) => void;
 }
 
-export function Breadcrumb({ prefix, path, onNavigate }: BreadcrumbProps) {
+export function Breadcrumb({ prefix, path, rootPath = '', onNavigate }: BreadcrumbProps) {
   const [copied, setCopied] = useState(false);
 
   // 复制完整路径
@@ -21,7 +22,6 @@ export function Breadcrumb({ prefix, path, onNavigate }: BreadcrumbProps) {
       setTimeout(() => setCopied(false), 1500);
     } catch (err) {
       console.error('复制失败:', err);
-      // Fallback
       const textarea = document.createElement('textarea');
       textarea.value = normalizedPath;
       textarea.style.position = 'fixed';
@@ -37,23 +37,30 @@ export function Breadcrumb({ prefix, path, onNavigate }: BreadcrumbProps) {
     }
   };
 
-  // 构建面包屑路径
-  const segments: { label: string; prefix: string; path: string }[] = [];
+  // 计算 rootPath 的层级深度，用于判断哪些段可导航
+  const rootParts = rootPath.split('/').filter(Boolean);
+  const rootDepth = rootParts.length; // e.g. /opt/claude/business → 3
 
-  // 根目录
-  segments.push({ label: "/", prefix: "", path: "" });
+  // 构建面包屑路径
+  const segments: { label: string; prefix: string; path: string; navigable: boolean }[] = [];
+
+  // 根目录 "/"
+  segments.push({ label: "/", prefix: "", path: "", navigable: rootDepth === 0 });
 
   // 如果有 prefix，添加前缀
   if (prefix) {
-    segments.push({ label: prefix, prefix, path: "" });
+    segments.push({ label: prefix, prefix, path: "", navigable: rootDepth <= 1 });
   }
 
   // 如果有 path，分割添加
   if (path) {
     const pathParts = path.split("/").filter(Boolean);
     pathParts.forEach((part, index) => {
-      const newPath = pathParts.slice(0, index + 1).join("/");
-      segments.push({ label: part, prefix, path: newPath });
+      const newPath = "/" + pathParts.slice(0, index + 1).join("/");
+      // 当前段的绝对深度 = prefix段数 + path段数
+      const absoluteDepth = (prefix ? 1 : 0) + index + 1;
+      const navigable = absoluteDepth >= rootDepth;
+      segments.push({ label: part, prefix, path: newPath, navigable });
     });
   }
 
@@ -63,33 +70,47 @@ export function Breadcrumb({ prefix, path, onNavigate }: BreadcrumbProps) {
         {segments.map((segment, index) => (
           <div key={index} className="flex items-center">
             {index > 0 && (
-              <ChevronRight className="h-3.5 w-3.5 text-slate-400 mx-1" />
+              <ChevronRight className="h-3.5 w-3.5 mx-1" style={{ color: '#9ca3af' }} />
             )}
-            <button
-              onClick={() => onNavigate(segment.prefix, segment.path)}
-              className={`
-                transition-colors px-1.5 py-0.5 rounded
-                ${
-                  index === segments.length - 1
-                    ? "text-slate-900 dark:text-slate-100 font-medium"
-                    : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
-                }
-              `}
-            >
-              {segment.label}
-            </button>
+            {segment.navigable ? (
+              <button
+                onClick={() => onNavigate(segment.prefix, segment.path)}
+                className="transition-colors px-1.5 py-0.5 rounded"
+                style={{
+                  color: index === segments.length - 1 ? '#111827' : '#6b7280',
+                  fontWeight: index === segments.length - 1 ? 500 : 400,
+                }}
+                onMouseEnter={e => {
+                  if (index !== segments.length - 1) e.currentTarget.style.backgroundColor = '#f3f4f6';
+                }}
+                onMouseLeave={e => { e.currentTarget.style.backgroundColor = 'transparent'; }}
+              >
+                {segment.label}
+              </button>
+            ) : (
+              <span
+                className="px-1.5 py-0.5"
+                style={{ color: '#9ca3af', cursor: 'default' }}
+                title="无法导航到项目根目录之外"
+              >
+                {segment.label}
+              </span>
+            )}
           </div>
         ))}
       </div>
       <button
         onClick={copyFullPath}
-        className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded transition-colors"
+        className="p-1 rounded transition-colors"
+        style={{ color: '#9ca3af' }}
+        onMouseEnter={e => { e.currentTarget.style.backgroundColor = '#f3f4f6'; }}
+        onMouseLeave={e => { e.currentTarget.style.backgroundColor = 'transparent'; }}
         title="复制路径"
       >
         {copied ? (
-          <Check className="h-3.5 w-3.5 text-green-500" />
+          <Check className="h-3.5 w-3.5" style={{ color: '#22c55e' }} />
         ) : (
-          <Copy className="h-3.5 w-3.5 text-slate-400" />
+          <Copy className="h-3.5 w-3.5" />
         )}
       </button>
     </div>

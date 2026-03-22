@@ -264,7 +264,7 @@ export function FileViewer({ file, loading, error, onNavigateUp }: FileViewerPro
       <div className="flex-1 overflow-auto">
         {isMarkdown && !showRawMarkdown ? (
           // Markdown 渲染视图
-          <div className="p-4 prose prose-slate dark:prose-invert max-w-none prose-headings:font-bold">
+          <div className="p-4 prose prose-slate max-w-none prose-headings:font-bold">
             <ReactMarkdown
               remarkPlugins={[remarkGfm]}
               components={{

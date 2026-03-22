@@ -1,4 +1,4 @@
-import { MessageStatus, DeliveryStatus } from '@/workbench/types/message-station';
+import { MessageStatus, DeliveryStatus } from '@/types/message-station';
 import { Loader2, Check, AlertCircle, Clock, ListOrdered } from 'lucide-react';
 
 interface MessageStatusIndicatorProps {

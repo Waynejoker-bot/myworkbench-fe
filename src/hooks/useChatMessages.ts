@@ -4,18 +4,19 @@ import {
   generateMessageId,
   textToPayload,
   startPolling as apiStartPolling,
+  cancelSession,
   type SSEConnectedData,
   SendMessageError,
 } from '@/api/chat';
 
-// Import our new types
-import type { RawMessage, UIMessage, ReplyRelation } from '@/workbench/types/message-station';
-import { aggregateMessages } from '@/workbench/utils/message-aggregator';
-import { organizeReplyRelations } from '@/workbench/utils/message-organizer';
-import { mergeMessages } from '@/workbench/utils/message-merger';
-import { parsePayload } from '@/workbench/utils/message-converters';
+// Import message processing types and utils
+import type { RawMessage, UIMessage, ReplyRelation } from '@/types/message-station';
+import { aggregateMessages } from '@/utils/message-aggregator';
+import { organizeReplyRelations } from '@/utils/message-organizer';
+import { mergeMessages } from '@/utils/message-merger';
+import { parsePayload } from '@/utils/message-converters';
 import { getMessages, extractLatestUpdateTime } from '@/api/message-station';
-import { workbenchStorage } from '@/workbench/storage';
+import { sessionStorage } from '@/lib/session-storage';
 
 // Re-export types that were previously in this file
 export interface Message {
@@ -53,8 +54,13 @@ export interface UseChatMessagesReturn {
   messages: Message[];
   isSending: boolean;
   send: (content: string, agentId: string) => Promise<boolean>;
+  retry: (messageId: string) => Promise<boolean>;
   clear: () => void;
   setMessages: React.Dispatch<React.SetStateAction<Message[]>>;
+
+  // Stop generation
+  isGenerating: boolean;
+  stopGeneration: () => void;
 
   // New fields
   rawMessages: RawMessage[];
@@ -124,6 +130,7 @@ export function useChatMessages(activeConversationId: string | null): UseChatMes
 
   const [isLoading, setIsLoading] = useState(false);
   const [isSending, setIsSending] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
 
   // 分页状态
   const [currentPage, setCurrentPage] = useState(1);
@@ -208,8 +215,13 @@ export function useChatMessages(activeConversationId: string | null): UseChatMes
       const newTimestamp = data.update_time;
       setLastUpdateTime(newTimestamp);
       if (activeConversationId) {
-        workbenchStorage.saveSessionTimestamp(activeConversationId, newTimestamp);
+        sessionStorage.saveSessionTimestamp(activeConversationId, newTimestamp);
       }
+    }
+
+    // Check if this is an END message (status === 3)
+    if (data.status === 3) {
+      setIsGenerating(false);
     }
 
     // Process as new message
@@ -227,7 +239,7 @@ export function useChatMessages(activeConversationId: string | null): UseChatMes
 
     // 持久化到 localStorage
     if (activeConversationId) {
-      workbenchStorage.saveSessionTimestamp(activeConversationId, data.last_update_time);
+      sessionStorage.saveSessionTimestamp(activeConversationId, data.last_update_time);
     }
   }, [activeConversationId]);
 
@@ -242,17 +254,19 @@ export function useChatMessages(activeConversationId: string | null): UseChatMes
       setLastUpdateTime(0);
       setCurrentPage(1);
       setTotalPages(1);
+      setIsGenerating(false);
       return;
     }
 
     // 重置初始化状态
     initializedRef.current[activeConversationId] = false;
+    setIsGenerating(false);
 
     const loadMessages = async () => {
       setIsLoading(true);
       try {
         // 1. 尝试从 localStorage 恢复 last_update_time
-        const savedTimestamp = workbenchStorage.getSessionTimestamp(activeConversationId);
+        const savedTimestamp = sessionStorage.getSessionTimestamp(activeConversationId);
 
         // 2. 从新的 MSAPI 接口获取历史消息（第一页）
         const data = await getMessages(activeConversationId, 1, 10);
@@ -268,7 +282,7 @@ export function useChatMessages(activeConversationId: string | null): UseChatMes
 
         // 更新状态
         setLastUpdateTime(finalTimestamp);
-        workbenchStorage.saveSessionTimestamp(activeConversationId, finalTimestamp);
+        sessionStorage.saveSessionTimestamp(activeConversationId, finalTimestamp);
 
         // 4. 处理消息
         handleNewMessages(rawMsgs, true);
@@ -348,7 +362,7 @@ export function useChatMessages(activeConversationId: string | null): UseChatMes
     if (activeConversationId && !isLoading && lastUpdateTime === 0 && initializedRef.current[activeConversationId]) {
       const now = Date.now();
       setLastUpdateTime(now);
-      workbenchStorage.saveSessionTimestamp(activeConversationId, now);
+      sessionStorage.saveSessionTimestamp(activeConversationId, now);
     }
   }, [activeConversationId, isLoading, lastUpdateTime]);
 
@@ -384,6 +398,7 @@ export function useChatMessages(activeConversationId: string | null): UseChatMes
 
     // Add user message immediately
     handleNewMessages([userMessage]);
+    setIsGenerating(true);
 
     try {
       await apiSendMessage({
@@ -455,6 +470,32 @@ export function useChatMessages(activeConversationId: string | null): UseChatMes
     setMessages([]);
   }, []);
 
+  const stopGeneration = useCallback(() => {
+    if (!isGenerating) return;
+    setIsGenerating(false);
+    if (pollingCleanupRef.current) {
+      pollingCleanupRef.current();
+      pollingCleanupRef.current = null;
+    }
+    if (activeConversationId) cancelSession(activeConversationId);
+  }, [isGenerating, activeConversationId]);
+
+  /**
+   * Retry a failed message
+   */
+  const retry = useCallback(async (messageId: string) => {
+    // Find the failed message
+    const failedMsg = rawMessages.find(m => m.message_id === messageId);
+    if (!failedMsg) return false;
+
+    // Extract content from payload
+    const content = parsePayload(failedMsg.payload);
+    if (!content) return false;
+
+    // Re-send
+    return send(content, failedMsg.target);
+  }, [rawMessages, send]);
+
   // Get the source of the last message (for auto-selecting agent)
   const lastMessageSource = useMemo(() => {
     if (uiMessages.length === 0) return null;
@@ -479,8 +520,13 @@ export function useChatMessages(activeConversationId: string | null): UseChatMes
     messages,
     isSending,
     send,
+    retry,
     clear,
     setMessages,
+
+    // Stop generation
+    isGenerating,
+    stopGeneration,
   };
 }
 

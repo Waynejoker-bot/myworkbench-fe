@@ -19,6 +19,7 @@ export interface Agent {
   options?: Record<string, unknown>;
   config?: AgentConfig;
   enabled?: boolean;
+  status?: string;
 }
 
 export interface AgentListResponse {
@@ -59,6 +60,7 @@ export function channelToAgent(channel: Channel): Agent {
       description: channel.description,
     },
     enabled: channel.status !== "OFFLINE",
+    status: channel.status,
   };
 }
 
@@ -86,4 +88,37 @@ export async function getAgents(): Promise<AgentListResponse> {
  */
 export async function getAgent(agentId: string): Promise<Agent> {
   return apiClient.get<Agent>(`/api/agents/${agentId}`);
+}
+
+/**
+ * 创建 Channel
+ */
+export async function createChannel(data: {
+  agent_id: string;
+  name: string;
+  description?: string;
+  llm_model?: string;
+  tools?: string[];
+}): Promise<Agent> {
+  return apiClient.post<Agent>('/msapi/channels', data);
+}
+
+/**
+ * 更新 Channel
+ */
+export async function updateChannel(agentId: string, data: {
+  name?: string;
+  description?: string;
+  llm_model?: string;
+  tools?: string[];
+  enabled?: boolean;
+}): Promise<Agent> {
+  return apiClient.patch<Agent>(`/msapi/channels/${agentId}`, data);
+}
+
+/**
+ * 删除 Channel
+ */
+export async function deleteChannel(agentId: string): Promise<void> {
+  return apiClient.delete<void>(`/msapi/channels/${agentId}`);
 }

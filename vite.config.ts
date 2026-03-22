@@ -1,10 +1,8 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import { resolve } from "node:path";
-import { marketPlugin } from "./src/vite-plugin-market";
-
 export default defineConfig({
-  plugins: [react(), marketPlugin()],
+  plugins: [react()],
   resolve: {
     alias: {
       "@": resolve(__dirname, "./src"),
@@ -16,13 +14,20 @@ export default defineConfig({
     host: true,
     allowedHosts: true,
     proxy: {
-      "/api": {
-        target: "http://localhost:8001",
+      "/market": {
+        target: "https://arm.hqdx.store",
         changeOrigin: true,
+        secure: true,
+      },
+      "/api": {
+        target: "https://arm.hqdx.store",
+        changeOrigin: true,
+        secure: true,
       },
       "/msapi": {
-        target: "http://localhost:8000",
+        target: "https://arm.hqdx.store",
         changeOrigin: true,
+        secure: true,
         // 支持 SSE 长连接
         configure: (proxy, options) => {
           proxy.on('proxyReq', (proxyReq, req, res) => {
@@ -49,9 +54,6 @@ export default defineConfig({
     rollupOptions: {
       input: {
         main: resolve(__dirname, 'index.html'),
-      },
-      output: {
-        preserveEntrySignatures: 'allow-extension',
       },
     },
   },

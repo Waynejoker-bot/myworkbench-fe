@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { apiClient } from "../../../lib/api-client";
 import { FileItem, FileItemWithContent } from "../types";
 
@@ -9,6 +9,9 @@ export function useFileSystem(token: string | null) {
   const [prefix, setPrefix] = useState<string>("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // 记录项目根路径，防止面包屑导航越界
+  const [rootPath, setRootPath] = useState<string>("");
+  const rootPathInitialized = useRef(false);
 
   const listDirectory = useCallback(async (newPrefix: string, newPath: string) => {
     if (!token) return;
@@ -30,13 +33,48 @@ export function useFileSystem(token: string | null) {
       setCurrentPath(response.path);
       setPrefix(response.prefix);
       setSelectedFile(null);
+
+      // 首次加载时记录 rootPath
+      if (!rootPathInitialized.current) {
+        setRootPath(basePath);
+        rootPathInitialized.current = true;
+      }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "加载失败");
+      const errorMessage = err instanceof Error ? err.message : "加载失败";
+      setError(errorMessage);
       setFileTree([]);
+
+      // 如果是 "out of project range" 错误，自动回退到 rootPath
+      if (
+        rootPathInitialized.current &&
+        errorMessage.toLowerCase().includes('out of project range')
+      ) {
+        // 延迟一点回退，让用户看到错误提示
+        setTimeout(() => {
+          setError(null);
+          setLoading(true);
+          apiClient.listFiles('', rootPath).then(response => {
+            const basePath = response.full_path.startsWith('/')
+              ? response.full_path
+              : `/${response.full_path}`;
+            const itemsWithPath: FileItem[] = response.items.map(item => ({
+              ...item,
+              full_path: `${basePath}/${item.name}`.replace(/\/+/g, '/'),
+            }));
+            setFileTree(itemsWithPath);
+            setCurrentPath(response.path);
+            setPrefix(response.prefix);
+          }).catch(() => {
+            // fallback 也失败了，保持错误状态
+          }).finally(() => {
+            setLoading(false);
+          });
+        }, 1500);
+      }
     } finally {
       setLoading(false);
     }
-  }, [token]);
+  }, [token, rootPath]);
 
   const readFile = useCallback(async (filePrefix: string, filePath: string) => {
     if (!token) return;
@@ -98,10 +136,12 @@ export function useFileSystem(token: string | null) {
   return {
     fileTree,
     selectedFile,
+    setSelectedFile,
     currentPath,
     prefix,
     loading,
     error,
+    rootPath,
     listDirectory,
     readFile,
     navigateUp,
