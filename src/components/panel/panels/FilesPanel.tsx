@@ -14,7 +14,6 @@ export function FilesPanel({ sessionId: _sessionId, agentId: _agentId, isActive:
     fileTree,
     selectedFile,
     currentPath,
-    prefix,
     loading,
     error,
     rootPath,
@@ -26,15 +25,75 @@ export function FilesPanel({ sessionId: _sessionId, agentId: _agentId, isActive:
   // Load root on mount
   useEffect(() => {
     if (token) {
-      listDirectory('', '')
+      listDirectory('')
     }
   }, [token])
 
   const handleItemClick = (item: FileItem) => {
     if (item.type === 'directory') {
-      listDirectory(prefix, item.full_path || '')
+      // 调试信息
+      console.log('Directory click debug:', {
+        name: item.name,
+        currentPath,
+        item_full_path: item.full_path,
+        rootPath
+      })
+
+      // 在当前路径基础上构建新路径
+      // 使用相对路径，避免使用 full_path
+      const newPath = currentPath ? `${currentPath}/${item.name}` : item.name
+
+      console.log('Calling listDirectory with path:', newPath)
+
+      // 修复：始终传空 prefix，path 传完整相对路径
+      listDirectory(newPath)
     } else {
-      readFile(prefix, item.full_path || '')
+      // 调试信息
+      console.log('File click debug:', {
+        full_path: item.full_path,
+        rootPath,
+        currentPath,
+        name: item.name
+      })
+
+      // 修复：文件读取时，需要正确解析 prefix 和 path
+      // 1. 提取路径中的文件部分
+      // 2. 如果文件在根目录（rootPath 下），使用空 prefix
+      // 3. 如果文件在子目录中，提取正确的 prefix 和 path
+
+      let filePrefix = '';
+      let filePath = '';
+
+      if (rootPath && item.full_path && item.full_path.startsWith(rootPath)) {
+        // full_path 包含 rootPath，提取相对部分
+        const relativePart = item.full_path.slice(rootPath.length).replace(/^\//, '');
+
+        if (relativePart.includes('/')) {
+          // 子目录中的文件：如 "operations/file.txt"
+          const pathParts = relativePart.split('/');
+          filePrefix = pathParts[0] ?? '';
+          filePath = pathParts.slice(1).join('/');
+        } else {
+          // 根目录中的文件：如 "file.txt"
+          filePrefix = '';
+          filePath = relativePart;
+        }
+
+        console.log('Parsed file path:', { rootPath, full_path: item.full_path, filePrefix, filePath });
+
+        // 确保 filePath 至少是文件名
+        if (!filePath) {
+          filePath = item.name;
+        }
+
+        if (filePath) {  // 确保 filePath 不是空
+          readFile(filePrefix, filePath);
+        }
+      } else {
+        // fallback：直接使用 name
+        console.log('Fallback: using item.name only');
+        readFile('', item.name || '');
+      }
     }
   }
 
@@ -89,7 +148,7 @@ export function FilesPanel({ sessionId: _sessionId, agentId: _agentId, isActive:
     <div className="flex flex-col h-full" style={{ background: '#f9fafb', color: '#111827' }}>
       {/* Breadcrumb */}
       <div className="px-3 py-2 shrink-0" style={{ borderBottom: '1px solid #d1d5db' }}>
-        <Breadcrumb prefix={prefix} path={currentPath} rootPath={rootPath} onNavigate={listDirectory} />
+        <Breadcrumb path={currentPath} rootPath={rootPath} onNavigate={listDirectory} />
       </div>
 
       {/* Content area */}
@@ -104,7 +163,7 @@ export function FilesPanel({ sessionId: _sessionId, agentId: _agentId, isActive:
             <AlertCircle className="h-6 w-6" style={{ color: '#ef4444' }} />
             <span className="text-sm text-center" style={{ color: '#ef4444' }}>{error}</span>
             <button
-              onClick={() => listDirectory(prefix, currentPath)}
+              onClick={() => listDirectory(currentPath)}
               className="text-xs px-3 py-1.5 rounded-lg transition-colors hover:opacity-80"
               style={{ background: '#f3f4f6', color: '#0ea5e9', border: '1px solid #d1d5db' }}
             >

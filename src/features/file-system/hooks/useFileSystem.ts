@@ -6,41 +6,61 @@ export function useFileSystem(token: string | null) {
   const [fileTree, setFileTree] = useState<FileItem[]>([]);
   const [selectedFile, setSelectedFile] = useState<FileItemWithContent | null>(null);
   const [currentPath, setCurrentPath] = useState<string>("");
-  const [prefix, setPrefix] = useState<string>("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   // 记录项目根路径，防止面包屑导航越界
   const [rootPath, setRootPath] = useState<string>("");
   const rootPathInitialized = useRef(false);
 
-  const listDirectory = useCallback(async (newPrefix: string, newPath: string) => {
+  const listDirectory = useCallback(async (path: string) => {
     if (!token) return;
 
     setLoading(true);
     setError(null);
 
+    console.log('listDirectory called with:', { path });
+
     try {
-      const response = await apiClient.listFiles(newPrefix, newPath);
-      // 为每个文件项添加 full_path，确保以 / 开头
-      const basePath = response.full_path.startsWith('/')
-        ? response.full_path
-        : `/${response.full_path}`;
-      const itemsWithPath: FileItem[] = response.items.map(item => ({
-        ...item,
-        full_path: `${basePath}/${item.name}`.replace(/\/+/g, '/'),
-      }));
+      const response = await apiClient.listFiles("", path);
+
+      console.log('Backend response:', response);
+
+      // 修复：不再使用 full_path，避免绝对路径问题
+      // 改用相对路径 + item.name 构建
+      const itemsWithPath: FileItem[] = response.items.map(item => {
+        const itemRelativePath = path
+          ? `${path}/${item.name}`
+          : item.name;
+
+        return {
+          ...item,
+          // full_path 现在是相对路径，不是绝对路径
+          full_path: `/${itemRelativePath}`.replace(/\/+/g, '/'),
+        }
+      });
+
+      console.log('Processed items:', itemsWithPath);
+
       setFileTree(itemsWithPath);
-      setCurrentPath(response.path);
-      setPrefix(response.prefix);
+
+      // 处理 path：确保是相对路径
+      let processedPath = response.path;
+      if (processedPath && processedPath.startsWith('/opt/claude/')) {
+        processedPath = processedPath.replace(/^\/opt\/claude\//, '');
+        console.log('Converted absolute path to relative:', response.path, '->', processedPath);
+      }
+      setCurrentPath(processedPath);
       setSelectedFile(null);
 
       // 首次加载时记录 rootPath
       if (!rootPathInitialized.current) {
-        setRootPath(basePath);
+        // 修复：使用响应的 full_path 作为根路径
+        setRootPath(response.full_path.startsWith('/') ? response.full_path : `/${response.full_path}`);
         rootPathInitialized.current = true;
       }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "加载失败";
+      console.error('listDirectory error:', errorMessage, err);
       setError(errorMessage);
       setFileTree([]);
 
@@ -53,7 +73,11 @@ export function useFileSystem(token: string | null) {
         setTimeout(() => {
           setError(null);
           setLoading(true);
-          apiClient.listFiles('', rootPath).then(response => {
+          // 修复：传递相对路径而不是绝对路径
+          const relativeRootPath = rootPath.startsWith('/opt/claude/')
+            ? rootPath.replace(/^\/opt\/claude\//, '')
+            : rootPath;
+          apiClient.listFiles('', relativeRootPath).then(response => {
             const basePath = response.full_path.startsWith('/')
               ? response.full_path
               : `/${response.full_path}`;
@@ -62,8 +86,13 @@ export function useFileSystem(token: string | null) {
               full_path: `${basePath}/${item.name}`.replace(/\/+/g, '/'),
             }));
             setFileTree(itemsWithPath);
-            setCurrentPath(response.path);
-            setPrefix(response.prefix);
+
+            // 处理 path：确保是相对路径
+            let processedPath = response.path;
+            if (processedPath && processedPath.startsWith('/opt/claude/')) {
+              processedPath = processedPath.replace(/^\/opt\/claude\//, '');
+            }
+            setCurrentPath(processedPath);
           }).catch(() => {
             // fallback 也失败了，保持错误状态
           }).finally(() => {
@@ -108,14 +137,14 @@ export function useFileSystem(token: string | null) {
     pathParts.pop();
     const newPath = pathParts.join("/");
 
-    listDirectory(prefix, newPath);
-  }, [currentPath, prefix, listDirectory]);
+    listDirectory(newPath);
+  }, [currentPath, listDirectory]);
 
   const canNavigateUp = Boolean(currentPath);
 
   const refresh = useCallback(async () => {
     // 刷新当前目录列表
-    await listDirectory(prefix, currentPath);
+    await listDirectory(currentPath);
 
     // 如果当前有选中的文件，刷新文件内容
     if (selectedFile && selectedFile.full_path) {
@@ -124,12 +153,12 @@ export function useFileSystem(token: string | null) {
         : `/${selectedFile.full_path}`;
       await readFile("", fullPath);
     }
-  }, [prefix, currentPath, selectedFile, listDirectory, readFile]);
+  }, [currentPath, selectedFile, listDirectory, readFile]);
 
   // 初始加载根目录
   useEffect(() => {
     if (token && fileTree.length === 0) {
-      listDirectory("", "");
+      listDirectory("");
     }
   }, [token]);
 
@@ -138,7 +167,6 @@ export function useFileSystem(token: string | null) {
     selectedFile,
     setSelectedFile,
     currentPath,
-    prefix,
     loading,
     error,
     rootPath,

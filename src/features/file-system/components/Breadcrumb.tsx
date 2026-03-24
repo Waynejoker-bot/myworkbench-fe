@@ -2,18 +2,17 @@ import { ChevronRight, Copy, Check } from "lucide-react";
 import { useState } from "react";
 
 interface BreadcrumbProps {
-  prefix: string;
   path: string;
   rootPath?: string;
-  onNavigate: (prefix: string, path: string) => void;
+  onNavigate: (path: string) => void;
 }
 
-export function Breadcrumb({ prefix, path, rootPath = '', onNavigate }: BreadcrumbProps) {
+export function Breadcrumb({ path, rootPath = '', onNavigate }: BreadcrumbProps) {
   const [copied, setCopied] = useState(false);
 
   // 复制完整路径
   const copyFullPath = async () => {
-    const fullPath = `/${prefix}${prefix && path ? '/' : ''}${path}`.replace(/\/+/g, '/');
+    const fullPath = `/${path}`.replace(/\/+/g, '/');
     const normalizedPath = fullPath.endsWith('/') && fullPath !== '/' ? fullPath.slice(0, -1) : fullPath;
 
     try {
@@ -42,25 +41,19 @@ export function Breadcrumb({ prefix, path, rootPath = '', onNavigate }: Breadcru
   const rootDepth = rootParts.length; // e.g. /opt/claude/business → 3
 
   // 构建面包屑路径
-  const segments: { label: string; prefix: string; path: string; navigable: boolean }[] = [];
+  const segments: { label: string; path: string; navigable: boolean }[] = [];
 
   // 根目录 "/"
-  segments.push({ label: "/", prefix: "", path: "", navigable: rootDepth === 0 });
-
-  // 如果有 prefix，添加前缀
-  if (prefix) {
-    segments.push({ label: prefix, prefix, path: "", navigable: rootDepth <= 1 });
-  }
+  segments.push({ label: "/", path: "", navigable: rootDepth === 0 });
 
   // 如果有 path，分割添加
   if (path) {
     const pathParts = path.split("/").filter(Boolean);
     pathParts.forEach((part, index) => {
-      const newPath = "/" + pathParts.slice(0, index + 1).join("/");
-      // 当前段的绝对深度 = prefix段数 + path段数
-      const absoluteDepth = (prefix ? 1 : 0) + index + 1;
+      const newPath = pathParts.slice(0, index + 1).join("/");
+      const absoluteDepth = index + 1;
       const navigable = absoluteDepth >= rootDepth;
-      segments.push({ label: part, prefix, path: newPath, navigable });
+      segments.push({ label: part, path: newPath, navigable });
     });
   }
 
@@ -74,7 +67,7 @@ export function Breadcrumb({ prefix, path, rootPath = '', onNavigate }: Breadcru
             )}
             {segment.navigable ? (
               <button
-                onClick={() => onNavigate(segment.prefix, segment.path)}
+                onClick={() => onNavigate(segment.path)}
                 className="transition-colors px-1.5 py-0.5 rounded"
                 style={{
                   color: index === segments.length - 1 ? '#111827' : '#6b7280',
