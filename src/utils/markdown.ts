@@ -53,11 +53,12 @@ export function renderMarkdown(markdown: string): string {
       'ul', 'ol', 'li', 'blockquote', 'a',
       'table', 'thead', 'tbody', 'tr', 'th', 'td',
       'hr', 's', 'del', 'ins', 'sub', 'sup',
-      'span', 'div', 'button'  // Allow button for copy/expand
+      'span', 'div', 'button', 'img'  // Allow button for copy/expand, img for images
     ],
     ALLOWED_ATTR: [
       'href', 'title', 'class', 'target',
-      'id', 'data-lang', 'data-collapsed'  // Allow data attrs for code blocks
+      'id', 'data-lang', 'data-collapsed',  // Allow data attrs for code blocks
+      'src', 'alt', 'width', 'height', 'loading', 'decoding'  // Allow img attributes
     ],
     ALLOW_DATA_ATTR: true,
   });

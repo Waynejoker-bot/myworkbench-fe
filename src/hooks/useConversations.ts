@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { getSessions, createSession, deleteSession, updateSessionTitle } from "@/api/session";
+import { getChannels } from "@/api/agent";
 import { useToast } from "@/contexts/ToastContext";
 
 const DEFAULT_TITLE = "新会话";
@@ -65,7 +66,15 @@ export function useConversations() {
     const loadSessions = async () => {
       try {
         setIsLoading(true);
-        const response = await getSessions();
+
+        // 获取所有 channels（不受用户权限限制，管理员可看到全部 Agent 的会话）
+        const channelsResponse = await getChannels();
+        const agentIds = channelsResponse.agents.map(agent => agent.agent_id).join(',');
+
+        // 获取这些 agents 对应的 sessions（只有当有 agents 时才传 agent_ids）
+        const response = await getSessions(
+          agentIds ? { agent_ids: agentIds } : undefined
+        );
         const sessionList: Conversation[] = response.sessions.map(session => ({
           id: session.session_id,
           title: session.title || session.session_id,
@@ -163,11 +172,19 @@ export function useConversations() {
     }
   }, [showToast]);
 
-  // 刷新会话列表
-  const refreshConversations = useCallback(async () => {
+  // 刷新会话列表（内部实现，支持 silent 模式）
+  const refreshConversationsInternal = useCallback(async (silent = false) => {
     try {
-      setIsLoading(true);
-      const response = await getSessions();
+      if (!silent) setIsLoading(true);
+
+      // 获取所有 channels（不受用户权限限制，管理员可看到全部 Agent 的会话）
+      const channelsResponse = await getChannels();
+      const agentIds = channelsResponse.agents.map(agent => agent.agent_id).join(',');
+
+      // 获取这些 agents 对应的 sessions（只有当有 agents 时才传 agent_ids）
+      const response = await getSessions(
+        agentIds ? { agent_ids: agentIds } : undefined
+      );
       const sessionList: Conversation[] = response.sessions.map(session => ({
         id: session.session_id,
         title: session.title || session.session_id,
@@ -179,12 +196,27 @@ export function useConversations() {
       }));
       setConversations(sortByTimestamp(sessionList));
     } catch (error) {
-      showToast('刷新会话列表失败，请稍后重试', 'error');
+      if (!silent) showToast('刷新会话列表失败，请稍后重试', 'error');
       void error;
     } finally {
-      setIsLoading(false);
+      if (!silent) setIsLoading(false);
     }
-  }, [showToast]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // 刷新会话列表（公开接口，保留原行为）
+  const refreshConversations = useCallback(async () => {
+    await refreshConversationsInternal(false);
+  }, [refreshConversationsInternal]);
+
+  // 定期轮询刷新会话列表（silent 模式，不显示 loading，不打扰用户）
+  useEffect(() => {
+    const interval = setInterval(() => {
+      refreshConversationsInternal(true);
+    }, 10000); // 每 10 秒轮询一次
+
+    return () => clearInterval(interval);
+  }, [refreshConversationsInternal]);
 
   return {
     conversations,

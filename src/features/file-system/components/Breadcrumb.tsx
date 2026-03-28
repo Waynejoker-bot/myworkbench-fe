@@ -36,24 +36,18 @@ export function Breadcrumb({ path, rootPath = '', onNavigate }: BreadcrumbProps)
     }
   };
 
-  // 计算 rootPath 的层级深度，用于判断哪些段可导航
-  const rootParts = rootPath.split('/').filter(Boolean);
-  const rootDepth = rootParts.length; // e.g. /opt/claude/business → 3
-
   // 构建面包屑路径
   const segments: { label: string; path: string; navigable: boolean }[] = [];
 
-  // 根目录 "/"
-  segments.push({ label: "/", path: "", navigable: rootDepth === 0 });
+  // 根目录 "/" - 始终可导航
+  segments.push({ label: "/", path: "", navigable: true });
 
-  // 如果有 path，分割添加
+  // 如果有 path，分割添加 - 所有段都可导航（因为使用相对路径）
   if (path) {
     const pathParts = path.split("/").filter(Boolean);
     pathParts.forEach((part, index) => {
       const newPath = pathParts.slice(0, index + 1).join("/");
-      const absoluteDepth = index + 1;
-      const navigable = absoluteDepth >= rootDepth;
-      segments.push({ label: part, path: newPath, navigable });
+      segments.push({ label: part, path: newPath, navigable: true });
     });
   }
 

@@ -30,70 +30,15 @@ export function FilesPanel({ sessionId: _sessionId, agentId: _agentId, isActive:
   }, [token])
 
   const handleItemClick = (item: FileItem) => {
+    const itemPath = currentPath ? `${currentPath}/${item.name}` : item.name
+
+    console.log('Item click:', { type: item.type, name: item.name, currentPath, itemPath })
+
     if (item.type === 'directory') {
-      // 调试信息
-      console.log('Directory click debug:', {
-        name: item.name,
-        currentPath,
-        item_full_path: item.full_path,
-        rootPath
-      })
-
-      // 在当前路径基础上构建新路径
-      // 使用相对路径，避免使用 full_path
-      const newPath = currentPath ? `${currentPath}/${item.name}` : item.name
-
-      console.log('Calling listDirectory with path:', newPath)
-
-      // 修复：始终传空 prefix，path 传完整相对路径
-      listDirectory(newPath)
+      listDirectory(itemPath)
     } else {
-      // 调试信息
-      console.log('File click debug:', {
-        full_path: item.full_path,
-        rootPath,
-        currentPath,
-        name: item.name
-      })
-
-      // 修复：文件读取时，需要正确解析 prefix 和 path
-      // 1. 提取路径中的文件部分
-      // 2. 如果文件在根目录（rootPath 下），使用空 prefix
-      // 3. 如果文件在子目录中，提取正确的 prefix 和 path
-
-      let filePrefix = '';
-      let filePath = '';
-
-      if (rootPath && item.full_path && item.full_path.startsWith(rootPath)) {
-        // full_path 包含 rootPath，提取相对部分
-        const relativePart = item.full_path.slice(rootPath.length).replace(/^\//, '');
-
-        if (relativePart.includes('/')) {
-          // 子目录中的文件：如 "operations/file.txt"
-          const pathParts = relativePart.split('/');
-          filePrefix = pathParts[0] ?? '';
-          filePath = pathParts.slice(1).join('/');
-        } else {
-          // 根目录中的文件：如 "file.txt"
-          filePrefix = '';
-          filePath = relativePart;
-        }
-
-        console.log('Parsed file path:', { rootPath, full_path: item.full_path, filePrefix, filePath });
-
-        // 确保 filePath 至少是文件名
-        if (!filePath) {
-          filePath = item.name;
-        }
-
-        if (filePath) {  // 确保 filePath 不是空
-          readFile(filePrefix, filePath);
-        }
-      } else {
-        // fallback：直接使用 name
-        console.log('Fallback: using item.name only');
-        readFile('', item.name || '');
-      }
+      // 文件：使用统一的 path 参数
+      readFile(itemPath)
     }
   }
 

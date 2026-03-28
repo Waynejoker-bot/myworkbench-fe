@@ -111,14 +111,14 @@ export function FileViewer({ file, loading, error, onNavigateUp }: FileViewerPro
   // 判断是否是 Markdown 文件
   const isMarkdown = useMemo(() => {
     if (!file?.name) return false;
-    const ext = file.name.split(".").pop()?.toLowerCase();
+    const ext = (file.name || "").split(".").pop()?.toLowerCase();
     return ext === "md" || ext === "markdown";
   }, [file?.name]);
 
   // 根据文件名推断语言
   const getLanguage = (filename: string | undefined): string => {
     if (!filename) return "plaintext";
-    const ext = filename.split(".").pop()?.toLowerCase();
+    const ext = (filename || "").split(".").pop()?.toLowerCase();
     const langMap: Record<string, string> = {
       js: "javascript",
       jsx: "javascript",

@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { MoreHorizontal, Trash2, Loader2, Pencil } from "lucide-react";
 import { AgentAvatar } from "@/components/ui/AgentAvatar";
 import type { Conversation } from "@/hooks/useConversations";
@@ -38,6 +38,20 @@ export function ConversationList({
   onUpdateTitle,
 }: ConversationListProps) {
   const [showMenu, setShowMenu] = useState<string | null>(null);
+
+  // Close menu when clicking outside the current conversation row
+  useEffect(() => {
+    if (!showMenu) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      const row = (e.target as Element).closest("[data-conversation-row]");
+      if (!row) {
+        setShowMenu(null);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [showMenu]);
+
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -106,13 +120,13 @@ export function ConversationList({
             const multiAgent = agentIds.length > 1;
 
             return (
-              <div key={conversation.id} className="relative">
+              <div key={conversation.id} className="relative" data-conversation-row>
                 <button
                   onClick={() => onSelectConversation(conversation.id)}
                   className="w-full text-left p-3 rounded-xl mb-1 transition-all"
                   style={{
-                    background: isActive ? "rgba(14, 165, 233, 0.08)" : "transparent",
-                    borderLeft: isActive ? "2px solid #0ea5e9" : "2px solid transparent",
+                    background: isActive ? "rgba(14, 165, 233, 0.15)" : "transparent",
+                    borderLeft: isActive ? "3px solid #0ea5e9" : "2px solid transparent",
                   }}
                   onMouseEnter={(e) => {
                     if (!isActive) e.currentTarget.style.background = "#e5e7eb";
@@ -147,16 +161,41 @@ export function ConversationList({
 
                     {/* Content */}
                     <div className="flex-1 min-w-0">
-                      {/* Row 1: Title + Time + Menu */}
-                      <div className="flex items-center justify-between gap-2">
-                        <h3
-                          className="font-medium text-sm truncate flex-1"
+                      {/* Row 1: Name */}
+                      {editingId === conversation.id ? (
+                        <input
+                          ref={editRef}
+                          value={editValue}
+                          onChange={(e) => setEditValue(e.target.value)}
+                          maxLength={50}
+                          className="text-xs font-semibold w-full bg-transparent outline-none truncate"
                           style={{
                             color: "#111827",
+                            borderBottom: "1px solid #0ea5e9",
                           }}
+                          onBlur={handleEditBlur}
+                          onKeyDown={handleEditKeyDown}
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                      ) : (
+                        <p
+                          className="text-xs font-semibold truncate"
+                          style={{ color: "#111827" }}
                         >
                           {agent?.name || conversation.title || "新对话"}
-                        </h3>
+                        </p>
+                      )}
+
+                      {/* Row 2: Last message + Time + Menu */}
+                      <div className="flex items-center justify-between gap-2 mt-0.5">
+                        {conversation.lastMessage && (
+                          <p
+                            className="text-xs truncate flex-1"
+                            style={{ color: "#64748b" }}
+                          >
+                            {conversation.lastMessage}
+                          </p>
+                        )}
                         <div className="flex items-center gap-1 shrink-0">
                           <span className="text-xs" style={{ color: "#475569" }}>
                             {formatTime(conversation.timestamp)}
@@ -197,41 +236,6 @@ export function ConversationList({
                           </button>
                         </div>
                       </div>
-
-                      {/* Row 2: Conversation title (editable) */}
-                      {editingId === conversation.id ? (
-                        <input
-                          ref={editRef}
-                          value={editValue}
-                          onChange={(e) => setEditValue(e.target.value)}
-                          maxLength={50}
-                          className="text-xs mt-0.5 w-full bg-transparent outline-none"
-                          style={{
-                            color: "#64748b",
-                            borderBottom: "1px solid #0ea5e9",
-                          }}
-                          onBlur={handleEditBlur}
-                          onKeyDown={handleEditKeyDown}
-                          onClick={(e) => e.stopPropagation()}
-                        />
-                      ) : (
-                        <p
-                          className="text-xs truncate mt-0.5"
-                          style={{ color: "#64748b" }}
-                        >
-                          {conversation.title}
-                        </p>
-                      )}
-
-                      {/* Row 3: Last message preview */}
-                      {conversation.lastMessage && (
-                        <p
-                          className="text-xs truncate mt-0.5"
-                          style={{ color: "#475569" }}
-                        >
-                          {conversation.lastMessage}
-                        </p>
-                      )}
                     </div>
                   </div>
                 </button>

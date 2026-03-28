@@ -234,7 +234,7 @@ export function MessageBubble({
           {!isSending && !isFailed && !isQueued && (
             <button
               onClick={handleCopy}
-              className="absolute top-2 right-2 p-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity"
+              className="absolute bottom-2 right-2 p-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity"
               style={{ backgroundColor: '#e5e7eb' }}
               title={copied ? '已复制' : '复制'}
             >
@@ -370,12 +370,13 @@ function CollapsibleText({ children, className, style, tag = 'p' }: {
   tag?: 'p' | 'pre';
 }) {
   const [expanded, setExpanded] = useState(false);
-  const lineCount = children.split('\n').length;
-  const isLong = lineCount > 3 || children.length > 200;
+  const safeChildren = children || '';
+  const lineCount = safeChildren.split('\n').length;
+  const isLong = lineCount > 3 || safeChildren.length > 200;
   const Tag = tag;
 
   if (!isLong) {
-    return <Tag className={className} style={style}>{children}</Tag>;
+    return <Tag className={className} style={style}>{safeChildren}</Tag>;
   }
 
   return (
@@ -524,7 +525,7 @@ function CollapsibleMarkdown({ html, isLong }: { html: string; isLong: boolean }
 function ContentBlockRenderer({ block, isUserMessage }: ContentBlockRendererProps) {
   // Text block
   if (block.type === ContentType.TEXT) {
-    const textContent = (block as any).content;
+    const textContent = (block as any).content || '';
     const hasLongLines = textContent.split('\n').some((line: string) => line.length > 100);
     const looksLikeJson = textContent.trim().startsWith('{') || textContent.trim().startsWith('[');
     const looksLikeCommandOutput = textContent.includes("'command':") || textContent.includes('"command":');
@@ -557,7 +558,7 @@ function ContentBlockRenderer({ block, isUserMessage }: ContentBlockRendererProp
 
   // Markdown block
   if (block.type === ContentType.MARKDOWN) {
-    const markdownContent = (block as any).content;
+    const markdownContent = (block as any).content || '';
     const renderedHtml = renderMarkdown(markdownContent);
     const isLongMarkdown = markdownContent.length > 300 || markdownContent.split('\n').length > 6;
     return (

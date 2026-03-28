@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { getChannels, type Agent } from "@/api/agent";
+import { getAgents, getChannels, type Agent } from "@/api/agent";
 
 const POLL_INTERVAL = 15_000; // 15秒轮询一次状态
 
@@ -14,10 +14,38 @@ export function useAgents() {
       if (!initialLoadDone.current) {
         setIsLoading(true);
       }
-      const response = await getChannels();
+
+      // 同时请求两个接口
+      const [agentsResponse, channelsResponse] = await Promise.all([
+        getAgents(),      // /api/agents - 有权限控制
+        getChannels(),    // /msapi/channels - 包含状态信息
+      ]);
+
+      // 使用 /api/agents 的数据作为主数据源（已有权限控制）
+      const authorizedAgents = agentsResponse.agents;
+
+      // 将 /msapi/channels 的状态信息合并到 agent 数据中
+      const mergedAgents = authorizedAgents.map(agent => {
+        // 从 channels 中查找对应的状态信息
+        const channel = channelsResponse.agents.find(
+          ch => ch.agent_id === agent.agent_id
+        );
+
+        // 如果找到对应的 channel，合并状态信息
+        if (channel) {
+          return {
+            ...agent,
+            status: channel.status,  // 使用 channel 的实时状态
+            // 保留原有的所有 agent 信息
+          };
+        }
+
+        // 没有找到对应的 channel，保持原样
+        return agent;
+      });
 
       // 按 agent_id 排序，保证列表顺序稳定
-      const sortedAgents = [...response.agents].sort((a, b) =>
+      const sortedAgents = [...mergedAgents].sort((a, b) =>
         a.agent_id.localeCompare(b.agent_id)
       );
       setAgents(sortedAgents);

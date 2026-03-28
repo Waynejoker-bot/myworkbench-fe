@@ -1,45 +1,56 @@
-import { useState, useEffect, FormEvent } from "react";
+import { useState, FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/contexts/ToastContext";
 
-export default function LoginPage() {
+export default function RegisterPage() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const { login, isAuthenticated } = useAuth();
+  const { register } = useAuth();
   const { showToast } = useToast();
   const navigate = useNavigate();
-
-  useEffect(() => {
-    if (isAuthenticated) {
-      navigate("/chat", { replace: true });
-    }
-  }, [isAuthenticated, navigate]);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setError("");
 
     // 表单验证
-    if (!username.trim()) {
+    const trimmedUsername = username.trim();
+    const trimmedPassword = password.trim();
+
+    if (!trimmedUsername) {
       setError("请输入用户名");
       return;
     }
-    if (!password.trim()) {
+    if (trimmedUsername.length < 3) {
+      setError("用户名至少需要3个字符");
+      return;
+    }
+    if (!trimmedPassword) {
       setError("请输入密码");
+      return;
+    }
+    if (trimmedPassword.length < 6) {
+      setError("密码至少需要6个字符");
+      return;
+    }
+    if (trimmedPassword !== confirmPassword.trim()) {
+      setError("两次输入的密码不一致");
       return;
     }
 
     setIsLoading(true);
 
     try {
-      await login(username.trim(), password.trim());
-      navigate("/chat", { replace: true });
+      await register(trimmedUsername, trimmedPassword);
+      showToast("注册成功！请登录", "success");
+      navigate("/login", { replace: true });
     } catch (err) {
       const message =
-        err instanceof Error ? err.message : "Login failed";
+        err instanceof Error ? err.message : "Registration failed";
       setError(message);
       showToast(message, "error");
     } finally {
@@ -61,7 +72,7 @@ export default function LoginPage() {
       >
         {/* Brand */}
         <h1
-          className="text-3xl font-bold text-center mb-8"
+          className="text-3xl font-bold text-center mb-2"
           style={{
             background: "linear-gradient(135deg, #0ea5e9, #38bdf8)",
             WebkitBackgroundClip: "text",
@@ -70,15 +81,18 @@ export default function LoginPage() {
         >
           ARMfn
         </h1>
+        <p className="text-center mb-6" style={{ color: "#6b7280", fontSize: "14px" }}>
+          创建新账号
+        </p>
 
-        <form onSubmit={handleSubmit} className="space-y-5">
+        <form onSubmit={handleSubmit} className="space-y-4">
           {/* Username input */}
           <div>
             <input
               type="text"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              placeholder="用户名"
+              placeholder="用户名（至少3个字符）"
               className="w-full px-4 py-3 rounded-lg text-sm outline-none transition-colors"
               style={{
                 backgroundColor: "#f3f4f6",
@@ -94,11 +108,27 @@ export default function LoginPage() {
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="密码"
+              placeholder="密码（至少6个字符）"
               className="w-full px-4 py-3 rounded-lg text-sm outline-none transition-colors"
               style={{
                 backgroundColor: "#f3f4f6",
-                border: error
+                border: "1px solid #d1d5db",
+                color: "#111827",
+              }}
+            />
+          </div>
+
+          {/* Confirm password input */}
+          <div>
+            <input
+              type="password"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              placeholder="确认密码"
+              className="w-full px-4 py-3 rounded-lg text-sm outline-none transition-colors"
+              style={{
+                backgroundColor: "#f3f4f6",
+                border: error && confirmPassword && password !== confirmPassword
                   ? "1px solid #ef4444"
                   : "1px solid #d1d5db",
                 color: "#111827",
@@ -117,23 +147,23 @@ export default function LoginPage() {
           {/* Submit button */}
           <button
             type="submit"
-            disabled={isLoading || !username.trim() || !password.trim()}
+            disabled={isLoading}
             className="w-full py-3 rounded-lg text-sm font-medium text-white transition-opacity disabled:opacity-50"
             style={{ backgroundColor: "#0ea5e9" }}
           >
-            {isLoading ? "登录中..." : "登录"}
+            {isLoading ? "注册中..." : "注册"}
           </button>
 
-          {/* Register link */}
+          {/* Login link */}
           <p className="text-center text-sm" style={{ color: "#6b7280" }}>
-            还没有账号？{" "}
+            已有账号？{" "}
             <button
               type="button"
-              onClick={() => navigate("/register")}
+              onClick={() => navigate("/login")}
               className="font-medium hover:underline"
               style={{ color: "#0ea5e9" }}
             >
-              立即注册
+              立即登录
             </button>
           </p>
         </form>

@@ -1,5 +1,5 @@
-import { useState, useRef, useCallback } from "react";
-import { ArrowLeft, Plus, Bot, FolderOpen, Wrench, ChevronRight, ChevronDown, Loader2 } from "lucide-react";
+import { useState, useRef, useCallback, useMemo, useEffect } from "react";
+import { ArrowLeft, Plus, Bot, FolderOpen, Wrench, ChevronRight, ChevronDown, Loader2, User, LogOut } from "lucide-react";
 import { AgentAvatar } from "@/components/ui/AgentAvatar";
 import { BottomTabBar } from "./BottomTabBar";
 import { ConversationList } from "@/components/chat/ConversationList";
@@ -8,6 +8,7 @@ import { ChatInput, ChatInputRef } from "@/components/chat/ChatInput";
 import { AgentPanel } from "@/components/panel/panels/AgentPanel";
 import { FilesPanel } from "@/components/panel/panels/FilesPanel";
 import { ToolsPanel } from "@/components/panel/panels/ToolsPanel";
+import { useAuth } from "@/contexts/AuthContext";
 import type { Conversation } from "@/hooks/useConversations";
 import type { Agent } from "@/api/agent";
 import type { UIMessage, ReplyRelation } from "@/types/message-station";
@@ -91,12 +92,37 @@ export function MobileLayout({
   isGenerating,
   onStop,
 }: MobileLayoutProps) {
+  const { logout } = useAuth();
   const [activeTab, setActiveTab] = useState<"chat" | "settings">("chat");
   const [chatView, setChatView] = useState<"list" | "conversation">("list");
   const [settingsView, setSettingsView] = useState<"menu" | "panel">("menu");
   const [settingsPanel, setSettingsPanel] = useState<SettingsPanel>("agents");
   const [showAgentPopup, setShowAgentPopup] = useState(false);
+  const [showUserMenu, setShowUserMenu] = useState(false);
+  const userMenuRef = useRef<HTMLDivElement>(null);
   const chatInputRef = useRef<ChatInputRef>(null);
+
+  // 从 localStorage 获取用户名
+  const username = useMemo(() => {
+    return localStorage.getItem('username') || '用户';
+  }, []);
+
+  const handleLogout = async () => {
+    await logout();
+    setShowUserMenu(false);
+  };
+
+  // 关闭用户菜单（点击外部）
+  useEffect(() => {
+    if (!showUserMenu) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (userMenuRef.current && !userMenuRef.current.contains(e.target as Node)) {
+        setShowUserMenu(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [showUserMenu]);
 
   const handleSelectConversation = useCallback(
     (id: string) => {
@@ -121,6 +147,10 @@ export function MobileLayout({
 
   const handleTabChange = useCallback((tab: "chat" | "settings") => {
     setActiveTab(tab);
+    // When switching to chat tab, reset to list view
+    if (tab === "chat") {
+      setChatView("list");
+    }
   }, []);
 
   const activeAgent = agentsMap.get(
@@ -154,7 +184,70 @@ export function MobileLayout({
         <span style={{ color: "#111827", fontSize: 18, fontWeight: 600 }}>
           对话
         </span>
-        <div style={{ display: "flex", gap: 8 }}>
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          {/* User Menu Button */}
+          <div className="relative" ref={userMenuRef}>
+            <button
+              onClick={() => setShowUserMenu(!showUserMenu)}
+              style={{
+                background: "transparent",
+                border: "none",
+                color: "#64748b",
+                padding: 8,
+                cursor: "pointer",
+                borderRadius: 8,
+              }}
+            >
+              <User style={{ width: 20, height: 20 }} />
+            </button>
+
+            {/* User Dropdown Menu */}
+            {showUserMenu && (
+              <div
+                style={{
+                  position: "absolute",
+                  right: 0,
+                  top: "100%",
+                  marginTop: 4,
+                  background: "#ffffff",
+                  border: "1px solid #d1d5db",
+                  borderRadius: 12,
+                  boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+                  minWidth: 160,
+                  overflow: "hidden",
+                  zIndex: 50,
+                }}
+              >
+                <div
+                  style={{
+                    padding: "12px 16px",
+                    borderBottom: "1px solid #d1d5db",
+                  }}
+                >
+                  <div style={{ fontSize: 11, color: "#64748b", marginBottom: 2 }}>当前用户</div>
+                  <div style={{ fontSize: 14, fontWeight: 600, color: "#111827" }}>{username}</div>
+                </div>
+                <button
+                  onClick={handleLogout}
+                  style={{
+                    width: "100%",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 8,
+                    padding: "12px 16px",
+                    background: "transparent",
+                    border: "none",
+                    textAlign: "left",
+                    cursor: "pointer",
+                  }}
+                >
+                  <LogOut style={{ width: 16, height: 16, color: "#64748b" }} />
+                  <span style={{ fontSize: 14, color: "#111827" }}>退出登录</span>
+                </button>
+              </div>
+            )}
+          </div>
+
           <button
             onClick={() => setShowAgentPopup(!showAgentPopup)}
             disabled={isCreating}
@@ -327,6 +420,69 @@ export function MobileLayout({
               }}
             >
               {activeAgent.config.description}
+            </div>
+          )}
+        </div>
+
+        {/* User Menu Button */}
+        <div className="relative" ref={userMenuRef}>
+          <button
+            onClick={() => setShowUserMenu(!showUserMenu)}
+            style={{
+              background: "transparent",
+              border: "none",
+              color: "#64748b",
+              padding: 8,
+              cursor: "pointer",
+              borderRadius: 8,
+            }}
+          >
+            <User style={{ width: 20, height: 20 }} />
+          </button>
+
+          {/* User Dropdown Menu */}
+          {showUserMenu && (
+            <div
+              style={{
+                position: "absolute",
+                right: 0,
+                top: "100%",
+                marginTop: 4,
+                background: "#ffffff",
+                border: "1px solid #d1d5db",
+                borderRadius: 12,
+                boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+                minWidth: 160,
+                overflow: "hidden",
+                zIndex: 50,
+              }}
+            >
+              <div
+                style={{
+                  padding: "12px 16px",
+                  borderBottom: "1px solid #d1d5db",
+                }}
+              >
+                <div style={{ fontSize: 11, color: "#64748b", marginBottom: 2 }}>当前用户</div>
+                <div style={{ fontSize: 14, fontWeight: 600, color: "#111827" }}>{username}</div>
+              </div>
+              <button
+                onClick={handleLogout}
+                style={{
+                  width: "100%",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                  padding: "12px 16px",
+                  background: "transparent",
+                  border: "none",
+                  textAlign: "left",
+                  cursor: "pointer",
+                }}
+              >
+                <LogOut style={{ width: 16, height: 16, color: "#64748b" }} />
+                <span style={{ fontSize: 14, color: "#111827" }}>退出登录</span>
+              </button>
             </div>
           )}
         </div>

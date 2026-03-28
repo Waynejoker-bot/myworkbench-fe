@@ -91,8 +91,8 @@ class ApiClient {
     return response.json();
   }
 
-  async login(password: string): Promise<LoginResponse> {
-    const payload: LoginRequest = { password };
+  async login(username: string, password: string): Promise<LoginResponse> {
+    const payload: LoginRequest = { username, password };
     const response = await this.request<LoginResponse>("/auth/login", {
       method: "POST",
       body: JSON.stringify(payload),

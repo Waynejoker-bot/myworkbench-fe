@@ -1,9 +1,9 @@
 import { useState, useRef, useCallback, useEffect, useMemo } from 'react'
-import { ChevronRight, ArrowLeft, Pencil, Trash2, AlertTriangle, Loader2, Plus, FileText, ChevronDown, ChevronUp, X, Maximize2 } from 'lucide-react'
+import { ChevronRight, ArrowLeft, Pencil, Trash2, AlertTriangle, Loader2, Plus, FileText, ChevronDown, ChevronUp, X, Maximize2, ExternalLink, Wrench, Code } from 'lucide-react'
 import { AgentAvatar } from '@/components/ui/AgentAvatar'
 import { useAgents } from '@/hooks/useAgents'
 import { useToast } from '@/contexts/ToastContext'
-import { deleteChannel, updateChannel, createChannel, getAgent } from '@/api/agent'
+import { deleteChannel, updateChannel, createChannel, getAgent, getTools, type Tool } from '@/api/agent'
 import { getSessions } from '@/api/session'
 import { apiClient } from '@/lib/api-client'
 import { FileViewer } from '@/features/file-system/components/FileViewer'
@@ -111,6 +111,11 @@ export function AgentPanel({ sessionId: _sessionId, agentId: _agentId, isActive:
   const [promptExpanded, setPromptExpanded] = useState(false)
   const [viewingFile, setViewingFile] = useState<FileItemWithContent | null>(null)
   const [loadingFileContent, setLoadingFileContent] = useState(false)
+  const [tools, setTools] = useState<Tool[]>([])
+  const [loadingTools, setLoadingTools] = useState(false)
+  const [viewingTool, setViewingTool] = useState<Tool | null>(null)
+  const [viewingToolCode, setViewingToolCode] = useState<string | null>(null)
+  const [loadingToolCode, setLoadingToolCode] = useState(false)
   const scrollRef = useRef<HTMLDivElement>(null)
   const scrollPos = useRef(0)
 
@@ -130,48 +135,77 @@ export function AgentPanel({ sessionId: _sessionId, agentId: _agentId, isActive:
 
     // Fetch full agent data (includes prompt)
     getAgent(agentId)
-      .then(detail => setAgentDetail(detail))
+      .then(detail => {
+        setAgentDetail(detail)
+        // 加载配置文件（使用 agentDetail.cwd）
+        loadConfigFilesForAgent(detail)
+      })
       .catch(() => setAgentDetail(null))
+  }, [selectedAgent])
 
-    // Fetch config files from agent directory
+  // Load all tools for tool detail display
+  useEffect(() => {
+    setLoadingTools(true)
+    getTools()
+      .then(res => setTools(res.tools || []))
+      .catch(() => setTools([]))
+      .finally(() => setLoadingTools(false))
+  }, [])
+
+  // 独立的配置文件加载函数（可复用）
+  async function loadConfigFilesForAgent(agentDetail: Agent | null) {
+    if (!selectedAgent) return
+    const agentId = selectedAgent.agent_id
+
     setLoadingFiles(true)
     setConfigFiles([])
+
+    // 动态构建搜索路径：首先尝试 cwd，然后回退到默认目录
+    const cwd = agentDetail?.cwd
     const tryPaths = [
+      // 首先尝试 cwd（如果存在且是绝对路径）
+      ...(cwd && cwd.startsWith('/opt/claude/') ? [cwd] : []),
+      // 然后尝试各分类目录
       `/opt/claude/business/${agentId}`,
       `/opt/claude/agent-service/agents/${agentId}`,
+      `/opt/claude/tech/${agentId}`,
+      `/opt/claude/content/${agentId}`,
+      `/opt/claude/operations/${agentId}`,
     ]
 
-    async function loadConfigFiles() {
-      for (const dirPath of tryPaths) {
-        try {
-          const res = await apiClient.listFiles('', dirPath)
-          if (res.items && res.items.length > 0) {
-            const files = res.items
-              .filter(item => item.type === 'file')
-              .map(item => ({
-                name: item.name,
-                type: item.type as 'file' | 'directory',
-                size: item.size,
-                full_path: item.full_path || `${dirPath}/${item.name}`,
-              }))
-            if (files.length > 0) {
-              setConfigFiles(files)
-              break
-            }
+    for (const dirPath of tryPaths) {
+      try {
+        // 转换绝对路径为相对路径（相对于 /opt/claude）
+        const relativePath = dirPath.replace('/opt/claude/', '')
+        const res = await apiClient.listFiles('', relativePath)
+        if (res.items && res.items.length > 0) {
+          const files = res.items
+            .filter(item => item.type === 'file')
+            .map(item => ({
+              name: item.name,
+              type: item.type as 'file' | 'directory',
+              size: item.size,
+              full_path: item.full_path || `${dirPath}/${item.name}`,
+            }))
+          if (files.length > 0) {
+            setConfigFiles(files)
+            setLoadingFiles(false)
+            return
           }
-        } catch {
-          // try next path
         }
+      } catch {
+        // try next path
       }
-      setLoadingFiles(false)
     }
-    loadConfigFiles()
-  }, [selectedAgent])
+    setLoadingFiles(false)
+  }
 
   const openConfigFile = useCallback(async (file: ConfigFileItem) => {
     setLoadingFileContent(true)
     try {
-      const res = await apiClient.readFile('', file.full_path)
+      // 转换绝对路径为相对路径（相对于 /opt/claude）
+      const relativePath = file.full_path.replace('/opt/claude/', '')
+      const res = await apiClient.readFile('', relativePath)
       setViewingFile({
         name: file.name,
         type: 'file',
@@ -187,6 +221,29 @@ export function AgentPanel({ sessionId: _sessionId, agentId: _agentId, isActive:
       setLoadingFileContent(false)
     }
   }, [showToast])
+
+  // 打开工具代码查看
+  const openToolCode = useCallback(async (tool: Tool) => {
+    setViewingTool(tool)
+    setViewingToolCode(null)
+    setLoadingToolCode(true)
+
+    try {
+      // 将 module_path 转换为文件路径
+      // 例如: "tools.builtin.read" -> "agent-service/tools/builtin/read.py"
+      const modulePath = tool.module_path.replace(/\./g, '/')
+      const relativePath = `${modulePath}.py`
+
+      // 使用文件 API 读取代码
+      const res = await apiClient.readFile('', relativePath)
+      setViewingToolCode(res.content)
+    } catch (err) {
+      console.error('Failed to load tool code:', err)
+      setViewingToolCode('// 无法加载工具代码，请检查文件路径是否正确。')
+    } finally {
+      setLoadingToolCode(false)
+    }
+  }, [])
 
   const goToDetail = useCallback((agent: Agent) => {
     if (scrollRef.current) scrollPos.current = scrollRef.current.scrollTop
@@ -448,20 +505,62 @@ export function AgentPanel({ sessionId: _sessionId, agentId: _agentId, isActive:
           {selectedAgent.tools && selectedAgent.tools.length > 0 && (
             <div style={{ marginBottom: 16 }}>
               <div style={{ fontSize: 12, color: '#64748b', marginBottom: 6 }}>技能</div>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                {selectedAgent.tools.map(tool => (
-                  <span key={tool} style={{
-                    padding: '3px 10px',
-                    background: '#f3f4f6',
-                    border: '1px solid #d1d5db',
-                    borderRadius: 12,
-                    fontSize: 12,
-                    color: '#38bdf8',
-                  }}>
-                    {tool}
-                  </span>
-                ))}
-              </div>
+              {loadingTools ? (
+                <div style={{ fontSize: 12, color: '#475569', padding: '8px 0' }}>加载中...</div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  {selectedAgent.tools.map(toolName => {
+                    const toolDetail = tools.find(t => t.name.toLowerCase() === toolName.toLowerCase())
+                    return (
+                      <div
+                        key={toolName}
+                        onClick={() => toolDetail && openToolCode(toolDetail)}
+                        style={{
+                          padding: '8px 10px',
+                          background: '#f3f4f6',
+                          border: '1px solid #d1d5db',
+                          borderRadius: 6,
+                          cursor: toolDetail ? 'pointer' : 'default',
+                          transition: 'background 0.15s',
+                        }}
+                        onMouseEnter={e => {
+                          if (toolDetail) e.currentTarget.style.background = '#e5e7eb'
+                        }}
+                        onMouseLeave={e => {
+                          e.currentTarget.style.background = '#f3f4f6'
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <Code style={{ width: 14, height: 14, color: '#0ea5e9', flexShrink: 0 }} />
+                            <span style={{ fontSize: 13, fontWeight: 600, color: '#0ea5e9' }}>
+                              {toolName}
+                            </span>
+                          </div>
+                          {toolDetail && (
+                            <ExternalLink style={{ width: 12, height: 12, color: '#94a3b8' }} />
+                          )}
+                        </div>
+                        {toolDetail?.description && (
+                          <div style={{
+                            fontSize: 11,
+                            color: '#64748b',
+                            marginTop: 4,
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            display: '-webkit-box',
+                            WebkitLineClamp: 2,
+                            WebkitBoxOrient: 'vertical',
+                            lineHeight: 1.4,
+                          }}>
+                            {(toolDetail.description || '').split('\n')[0]}
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
             </div>
           )}
 
@@ -734,6 +833,95 @@ export function AgentPanel({ sessionId: _sessionId, agentId: _agentId, isActive:
             </div>
             <div style={{ flex: 1, overflow: 'auto' }}>
               <FileViewer file={viewingFile} loading={false} error={null} onNavigateUp={() => setViewingFile(null)} />
+            </div>
+          </div>
+        )}
+
+        {/* Tool code viewer modal */}
+        {viewingTool && (
+          <div
+            style={{
+              position: 'fixed',
+              inset: 0,
+              background: '#f9fafb',
+              zIndex: 200,
+              display: 'flex',
+              flexDirection: 'column',
+            }}
+          >
+            {/* Header */}
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              padding: '10px 16px',
+              borderBottom: '1px solid #d1d5db',
+              flexShrink: 0,
+            }}>
+              <button
+                onClick={() => {
+                  setViewingTool(null)
+                  setViewingToolCode(null)
+                }}
+                style={{ background: 'transparent', border: 'none', color: '#111827', cursor: 'pointer', padding: 4, display: 'flex' }}
+              >
+                <X style={{ width: 18, height: 18 }} />
+              </button>
+              <Wrench style={{ width: 16, height: 16, color: '#0ea5e9' }} />
+              <span style={{ fontSize: 14, fontWeight: 600, color: '#111827', flex: 1 }}>
+                工具: {viewingTool.name}
+              </span>
+            </div>
+
+            {/* Tool info */}
+            <div style={{
+              padding: '12px 16px',
+              background: '#f3f4f6',
+              borderBottom: '1px solid #d1d5db',
+              flexShrink: 0,
+            }}>
+              <div style={{ fontSize: 11, color: '#64748b', marginBottom: 4 }}>
+                模块: <span style={{ fontFamily: 'monospace', color: '#111827' }}>{viewingTool.module_path}</span>
+              </div>
+              <div style={{ fontSize: 11, color: '#64748b', marginBottom: 4 }}>
+                类名: <span style={{ fontFamily: 'monospace', color: '#111827' }}>{viewingTool.class_name}</span>
+              </div>
+              {viewingTool.description && (
+                <div style={{ fontSize: 12, color: '#475569', lineHeight: 1.5, marginTop: 8, whiteSpace: 'pre-wrap' }}>
+                  {viewingTool.description}
+                </div>
+              )}
+            </div>
+
+            {/* Code content */}
+            <div style={{ flex: 1, overflow: 'auto' }}>
+              {loadingToolCode ? (
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
+                  <Loader2 style={{ width: 32, height: 32, color: '#0ea5e9', animation: 'spin 1s linear infinite' }} />
+                </div>
+              ) : viewingToolCode ? (
+                <FileViewer
+                  file={{
+                    name: `${(viewingTool.module_path || 'tool').split('.').pop()}.py`,
+                    type: 'file',
+                    size: viewingToolCode.length,
+                    modified_time: new Date().toISOString(),
+                    path: viewingTool.module_path || 'tool',
+                    full_path: `/opt/claude/agent-service/${(viewingTool.module_path || 'tool').replace(/\./g, '/')}.py`,
+                    content: viewingToolCode,
+                  }}
+                  loading={false}
+                  error={null}
+                  onNavigateUp={() => {
+                    setViewingTool(null)
+                    setViewingToolCode(null)
+                  }}
+                />
+              ) : (
+                <div style={{ padding: 16, color: '#64748b', fontSize: 13 }}>
+                  无法加载工具代码
+                </div>
+              )}
             </div>
           </div>
         )}

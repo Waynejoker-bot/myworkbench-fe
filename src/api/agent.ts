@@ -106,7 +106,7 @@ export async function createChannel(data: {
 }
 
 /**
- * 更新 Channel
+ * 更新 Agent
  */
 export async function updateChannel(agentId: string, data: {
   name?: string;
@@ -117,7 +117,7 @@ export async function updateChannel(agentId: string, data: {
   tools?: string[];
   enabled?: boolean;
 }): Promise<Agent> {
-  return apiClient.patch<Agent>(`/msapi/channels/${agentId}`, data);
+  return apiClient.put<Agent>(`/api/agents/${agentId}`, data);
 }
 
 /**
@@ -125,4 +125,40 @@ export async function updateChannel(agentId: string, data: {
  */
 export async function deleteChannel(agentId: string): Promise<void> {
   return apiClient.delete<void>(`/msapi/channels/${agentId}`);
+}
+
+// ─────────────────────────────────────────
+// 工具相关 API
+// ─────────────────────────────────────────
+
+export interface Tool {
+  name: string;
+  module_path: string;
+  class_name: string;
+  category: string;
+  version: string;
+  description: string;
+  tags: string[];
+  mcp_enabled: boolean;
+  mcp_server: string;
+  enabled: boolean;
+}
+
+export interface ToolListResponse {
+  tools: Tool[];
+  count: number;
+}
+
+/**
+ * 获取所有工具列表
+ */
+export async function getTools(): Promise<ToolListResponse> {
+  return apiClient.get<ToolListResponse>("/api/tools/");
+}
+
+/**
+ * 获取单个工具详情
+ */
+export async function getTool(toolName: string): Promise<Tool> {
+  return apiClient.get<Tool>(`/api/tools/${toolName}`);
 }

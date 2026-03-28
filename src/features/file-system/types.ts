@@ -40,6 +40,7 @@ export interface InfoResponse {
 }
 
 export interface LoginRequest {
+  username?: string;
   password: string;
 }
 

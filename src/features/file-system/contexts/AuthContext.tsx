@@ -4,7 +4,7 @@ import { apiClient } from "../api/client";
 interface AuthContextType {
   token: string | null;
   isAuthenticated: boolean;
-  login: (password: string) => Promise<void>;
+  login: (username: string, password: string) => Promise<void>;
   logout: () => void;
 }
 
@@ -15,8 +15,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     () => localStorage.getItem("access_token")
   );
 
-  const login = useCallback(async (password: string) => {
-    const response = await apiClient.login(password);
+  const login = useCallback(async (username: string, password: string) => {
+    const response = await apiClient.login(username, password);
     setToken(response.access_token);
   }, []);
 

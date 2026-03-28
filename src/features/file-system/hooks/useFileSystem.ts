@@ -43,13 +43,8 @@ export function useFileSystem(token: string | null) {
 
       setFileTree(itemsWithPath);
 
-      // 处理 path：确保是相对路径
-      let processedPath = response.path;
-      if (processedPath && processedPath.startsWith('/opt/claude/')) {
-        processedPath = processedPath.replace(/^\/opt\/claude\//, '');
-        console.log('Converted absolute path to relative:', response.path, '->', processedPath);
-      }
-      setCurrentPath(processedPath);
+      // 使用传入的 path 参数作为 currentPath，确保目录导航正确
+      setCurrentPath(path);
       setSelectedFile(null);
 
       // 首次加载时记录 rootPath
@@ -105,21 +100,22 @@ export function useFileSystem(token: string | null) {
     }
   }, [token, rootPath]);
 
-  const readFile = useCallback(async (filePrefix: string, filePath: string) => {
+  const readFile = useCallback(async (path: string) => {
     if (!token) return;
 
     setLoading(true);
     setError(null);
 
     try {
-      const response = await apiClient.readFile(filePrefix, filePath);
+      const response = await apiClient.readFile("", path);
+      const safeResponsePath = response.path || path || "";
       const fileWithContent: FileItemWithContent = {
-        name: response.path.split("/").pop() || "",
+        name: safeResponsePath.split("/").pop() || "",
         type: "file",
         size: response.size,
         modified_time: new Date().toISOString(),
-        path: response.path,
-        full_path: response.full_path,
+        path: safeResponsePath,
+        full_path: response.full_path || safeResponsePath,
         content: response.content,
       };
       setSelectedFile(fileWithContent);
@@ -148,10 +144,9 @@ export function useFileSystem(token: string | null) {
 
     // 如果当前有选中的文件，刷新文件内容
     if (selectedFile && selectedFile.full_path) {
-      const fullPath = selectedFile.full_path.startsWith('/')
-        ? selectedFile.full_path
-        : `/${selectedFile.full_path}`;
-      await readFile("", fullPath);
+      // 提取相对路径
+      const filePath = selectedFile.full_path.replace(/^\//, '').replace(/^\/opt\/claude\//, '');
+      await readFile(filePath);
     }
   }, [currentPath, selectedFile, listDirectory, readFile]);
 

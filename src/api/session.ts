@@ -41,12 +41,14 @@ export interface MessageListResponse {
  */
 export async function getSessions(params?: {
   agent_id?: string;
+  agent_ids?: string;  // 逗号分隔的多个 agent_id，如 "agent-a,agent-b,agent-c"
   status?: 'active' | 'completed' | 'archived';
   limit?: number;
   offset?: number;
 }): Promise<SessionListResponse> {
   const searchParams = new URLSearchParams();
   if (params?.agent_id) searchParams.set('agent_id', params.agent_id);
+  if (params?.agent_ids) searchParams.set('agent_ids', params.agent_ids);
   if (params?.status) searchParams.set('status', params.status);
   if (params?.limit) searchParams.set('limit', params.limit.toString());
   if (params?.offset) searchParams.set('offset', params.offset.toString());

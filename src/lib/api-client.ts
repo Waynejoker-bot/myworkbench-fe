@@ -92,18 +92,45 @@ class ApiClient {
     return response.json();
   }
 
-  async login(password: string): Promise<{ access_token: string; expires_in: number }> {
-    const response = await this.request<{ access_token: string; expires_in: number }>("/api/auth/login", {
+  async login(username: string, password: string): Promise<{ access_token: string; expires_in: number; username: string }> {
+    const response = await this.request<{ access_token: string; expires_in: number; username: string }>("/api/auth/login", {
       method: "POST",
-      body: JSON.stringify({ password }),
+      body: JSON.stringify({ username, password }),
     });
 
     this.saveToken(response.access_token, response.expires_in);
+    localStorage.setItem("username", response.username);
     return response;
   }
 
-  logout() {
-    this.clearToken();
+  async register(username: string, password: string): Promise<{ message: string; user_id: number; username: string }> {
+    const response = await this.request<{ message: string; user_id: number; username: string }>("/api/auth/register", {
+      method: "POST",
+      body: JSON.stringify({ username, password }),
+    });
+
+    return response;
+  }
+
+  async logout(): Promise<void> {
+    try {
+      // 调用后端 logout 接口
+      await this.request<void>("/api/auth/logout", { method: "POST" });
+    } catch (error) {
+      // 即使后端接口失败，也要清理本地状态
+      console.error("Logout API call failed:", error);
+    } finally {
+      // 清理本地状态
+      this.clearToken();
+      // 清理 cookie
+      document.cookie.split(";").forEach(c => {
+        const eqPos = c.indexOf("=");
+        const name = eqPos > -1 ? c.substr(0, eqPos) : c;
+        document.cookie = name + "=;expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/";
+      });
+      // 清理用户信息
+      localStorage.removeItem("username");
+    }
   }
 
   // 通用请求方法
@@ -121,6 +148,13 @@ class ApiClient {
   async patch<T>(endpoint: string, data?: unknown): Promise<T> {
     return this.request<T>(endpoint, {
       method: "PATCH",
+      body: data ? JSON.stringify(data) : undefined,
+    });
+  }
+
+  async put<T>(endpoint: string, data?: unknown): Promise<T> {
+    return this.request<T>(endpoint, {
+      method: "PUT",
       body: data ? JSON.stringify(data) : undefined,
     });
   }

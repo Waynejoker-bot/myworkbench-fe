@@ -47,6 +47,7 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(function ChatI
   const [convertingFile, setConvertingFile] = useState(false);
   const [isComposing, setIsComposing] = useState(false);
   const [showPlusMenu, setShowPlusMenu] = useState(false);
+  const [uploadedImages, setUploadedImages] = useState<Array<{ id: string; url: string; filename: string }>>([]);
 
   // @ Agent 选择相关状态
   const [showAgentMention, setShowAgentMention] = useState(false);
@@ -184,8 +185,13 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(function ChatI
       setIsUploading(true);
       try {
         const result = await uploadImage(file);
-        const imageMarkdown = `![${result.filename || 'image'}](${result.url})`;
-        setInput(prev => prev + (prev ? '\n' : '') + imageMarkdown);
+        // 添加到图片预览列表
+        const newImage = {
+          id: Date.now().toString(),
+          url: result.url,
+          filename: result.filename || 'image'
+        };
+        setUploadedImages(prev => [...prev, newImage]);
       } catch (error) {
         console.error('图片上传失败:', error);
         showToast('图片上传失败', 'error');
@@ -229,16 +235,30 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(function ChatI
     setUploadedFile(null);
   };
 
+  // 移除已上传的图片
+  const handleRemoveImage = (imageId: string) => {
+    setUploadedImages(prev => prev.filter(img => img.id !== imageId));
+  };
+
   const handleSend = async () => {
-    if (!input.trim() || disabled || isSending) return;
+    // 检查是否有文本或图片
+    const hasText = input.trim().length > 0;
+    const hasImages = uploadedImages.length > 0;
+
+    if ((!hasText && !hasImages) || disabled || isSending) return;
 
     const targetAgentId = targetAgent?.agent_id || selectedAgentId;
 
     if (!targetAgentId) return;
 
-    const messageToSend = input.trim();
+    // 构建消息内容
+    let messageToSend = input.trim();
 
-    if (!messageToSend) return;
+    // 如果有图片，将图片转换为 Markdown 格式附加到消息
+    if (hasImages) {
+      const imageMarkdowns = uploadedImages.map(img => `![${img.filename}](${img.url})`);
+      messageToSend = messageToSend + (hasText ? '\n\n' : '') + imageMarkdowns.join('\n\n');
+    }
 
     setIsSending(true);
     const success = await onSend(messageToSend, targetAgentId);
@@ -248,6 +268,7 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(function ChatI
       setInput("");
       setTargetAgent(null);
       setUploadedFile(null);
+      setUploadedImages([]);
       setTimeout(adjustTextareaHeight, 0);
     }
   };
@@ -275,8 +296,13 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(function ChatI
 
         try {
           const result = await uploadImage(file);
-          const imageMarkdown = `![${result.filename || 'image'}](${result.url})`;
-          setInput(prev => prev + (prev ? '\n' : '') + imageMarkdown);
+          // 添加到图片预览列表
+          const newImage = {
+            id: Date.now().toString(),
+            url: result.url,
+            filename: result.filename || 'image'
+          };
+          setUploadedImages(prev => [...prev, newImage]);
         } catch (error) {
           console.error('Image upload failed:', error);
           showToast('图片上传失败', 'error');
@@ -327,7 +353,7 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(function ChatI
     }
   };
 
-  const hasContent = input.trim().length > 0;
+  const hasContent = input.trim().length > 0 || uploadedImages.length > 0;
 
   return (
     <div
@@ -371,6 +397,33 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(function ChatI
           >
             <X className="h-4 w-4" />
           </button>
+        </div>
+      )}
+
+      {/* 已上传图片预览 */}
+      {uploadedImages.length > 0 && (
+        <div className="mb-2 flex flex-wrap gap-2">
+          {uploadedImages.map((image) => (
+            <div
+              key={image.id}
+              className="relative inline-flex items-center gap-2 px-3 py-2 rounded-lg border"
+              style={{ backgroundColor: 'rgba(14, 165, 233, 0.08)', borderColor: '#d1d5db' }}
+            >
+              <img
+                src={image.url}
+                alt={image.filename}
+                className="h-16 w-16 object-cover rounded"
+                style={{ backgroundColor: '#e5e7eb' }}
+              />
+              <button
+                onClick={() => handleRemoveImage(image.id)}
+                className="absolute -top-1.5 -right-1.5 p-0.5 rounded-full hover:opacity-80 transition-opacity"
+                style={{ backgroundColor: '#64748b', color: '#fff' }}
+              >
+                <X className="h-3 w-3" />
+              </button>
+            </div>
+          ))}
         </div>
       )}
 
