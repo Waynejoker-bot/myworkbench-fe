@@ -1,9 +1,9 @@
 import { useState, useRef, useCallback, useEffect, useMemo } from 'react'
-import { ChevronRight, ArrowLeft, Pencil, Trash2, AlertTriangle, Loader2, Plus, FileText, ChevronDown, ChevronUp, X, Maximize2, ExternalLink, Wrench, Code } from 'lucide-react'
+import { ChevronRight, ArrowLeft, AlertTriangle, Loader2, Plus, FileText, X, FolderOpen } from 'lucide-react'
 import { AgentAvatar } from '@/components/ui/AgentAvatar'
 import { useAgents } from '@/hooks/useAgents'
 import { useToast } from '@/contexts/ToastContext'
-import { deleteChannel, updateChannel, createChannel, getAgent, getTools, type Tool } from '@/api/agent'
+import { deleteChannel, createChannel, getAgent } from '@/api/agent'
 import { getSessions } from '@/api/session'
 import { apiClient } from '@/lib/api-client'
 import { FileViewer } from '@/features/file-system/components/FileViewer'
@@ -12,7 +12,7 @@ import type { PanelProps } from '@/types/panel-plugin'
 import type { Agent } from '@/api/agent'
 import type { Session } from '@/api/session'
 
-interface ConfigFileItem {
+interface NestFileItem {
   name: string
   type: 'file' | 'directory'
   size: number | null
@@ -23,7 +23,9 @@ type WorkStatus = 'idle' | 'busy' | 'offline'
 
 function formatRelativeTime(timestamp: number): string {
   if (!timestamp || timestamp === 0) return '-'
-  const diff = Date.now() - timestamp
+  // 兼容秒级时间戳（后端 bug）：如果值小于 1e11，认为是秒，转为毫秒
+  const ms = timestamp < 1e11 ? timestamp * 1000 : timestamp
+  const diff = Date.now() - ms
   const minutes = Math.floor(diff / 60000)
   if (minutes < 1) return '刚刚'
   if (minutes < 60) return `${minutes}分钟前`
@@ -31,12 +33,11 @@ function formatRelativeTime(timestamp: number): string {
   if (hours < 24) return `${hours}小时前`
   const days = Math.floor(hours / 24)
   if (days < 7) return `${days}天前`
-  return new Date(timestamp).toLocaleDateString('zh-CN')
+  return new Date(ms).toLocaleDateString('zh-CN')
 }
 
 function getAgentStatus(agent: Agent, busyAgentIds?: Set<string>): WorkStatus {
   if (agent.enabled === false) return 'offline'
-  // 前端检测到正在流式输出，优先于后端状态
   if (busyAgentIds?.has(agent.agent_id)) return 'busy'
   if (agent.status === 'SESSION_BUSY') return 'busy'
   if (agent.status === 'SESSION_IDLE') return 'idle'
@@ -57,8 +58,8 @@ function StatusDot({ status }: { status: WorkStatus }) {
         display: 'inline-block',
         flexShrink: 0,
       }} />
-      {status === 'busy' && <Loader2 style={{ width: 12, height: 12, color: '#f59e0b', animation: 'spin 1s linear infinite' }} />}
-      <span style={{ color: status === 'offline' ? '#475569' : '#111827', opacity: status === 'offline' ? 0.6 : 1 }}>
+      {status === 'busy' && <Loader2 className="text-warning" style={{ width: 12, height: 12, animation: 'spin 1s linear infinite' }} />}
+      <span className={status === 'offline' ? 'text-muted-foreground' : 'text-foreground'} style={{ opacity: status === 'offline' ? 0.6 : 1 }}>
         {labels[status]}
       </span>
     </span>
@@ -67,17 +68,40 @@ function StatusDot({ status }: { status: WorkStatus }) {
 
 function MiniStat({ label, count, color }: { label: string; count: number; color: string }) {
   return (
-    <div style={{ flex: 1, textAlign: 'center', padding: '8px 4px', background: '#f3f4f6', border: '1px solid #d1d5db', borderRadius: 6 }}>
+    <div className="flex-1 text-center bg-muted border border-border rounded-md" style={{ padding: '8px 4px' }}>
       <div style={{ fontSize: 16, fontWeight: 700, color }}>{count}</div>
-      <div style={{ fontSize: 10, color: '#64748b' }}>{label}</div>
+      <div className="text-muted-foreground" style={{ fontSize: 10 }}>{label}</div>
     </div>
   )
+}
+
+function renderYamlHighlighted(yaml: string) {
+  return yaml.split('\n').map((line, i) => {
+    const match = line.match(/^(\s*)([\w-]+)(:)(.*)$/)
+    if (match) {
+      const [, indent, key, colon, rest] = match
+      return (
+        <div key={i}>
+          {indent}<span style={{ color: 'var(--color-primary)' }}>{key}</span>{colon}{rest}
+        </div>
+      )
+    }
+    const boolMatch = line.match(/^(\s*-?\s*)(true|false|null)(\s*)$/)
+    if (boolMatch) {
+      const [, prefix, value, suffix] = boolMatch
+      return (
+        <div key={i}>
+          {prefix}<span style={{ color: '#4ade80' }}>{value}</span>{suffix}
+        </div>
+      )
+    }
+    return <div key={i}>{line || '\u00A0'}</div>
+  })
 }
 
 export function AgentPanel({ sessionId: _sessionId, agentId: _agentId, isActive: _isActive, onCreateConversation, onSelectSession, busyAgentIds }: PanelProps) {
   const { agents } = useAgents()
 
-  // 直接从 agents 列表计算 counts，结合前端 busyAgentIds 补偿后端状态不实时的问题
   const counts = useMemo(() => {
     const result = { idle: 0, working: 0, offline: 0 }
     for (const agent of agents) {
@@ -88,17 +112,11 @@ export function AgentPanel({ sessionId: _sessionId, agentId: _agentId, isActive:
     }
     return result
   }, [agents, busyAgentIds])
+
   const { showToast } = useToast()
   const [selectedAgent, setSelectedAgent] = useState<Agent | null>(null)
-  const [isEditing, setIsEditing] = useState(false)
   const [showDeleteModal, setShowDeleteModal] = useState(false)
-  const [editName, setEditName] = useState('')
-  const [editPrompt, setEditPrompt] = useState('')
-  const [showPromptModal, setShowPromptModal] = useState(false)
-  const [modalPromptValue, setModalPromptValue] = useState('')
-  const [editCwd, setEditCwd] = useState('')
   const [isDeleting, setIsDeleting] = useState(false)
-  const [isSaving, setIsSaving] = useState(false)
   const [showCreateForm, setShowCreateForm] = useState(false)
   const [newAgentName, setNewAgentName] = useState('')
   const [newAgentId, setNewAgentId] = useState('')
@@ -106,19 +124,25 @@ export function AgentPanel({ sessionId: _sessionId, agentId: _agentId, isActive:
   const [recentSessions, setRecentSessions] = useState<Session[]>([])
   const [loadingSessions, setLoadingSessions] = useState(false)
   const [agentDetail, setAgentDetail] = useState<Agent | null>(null)
-  const [configFiles, setConfigFiles] = useState<ConfigFileItem[]>([])
-  const [loadingFiles, setLoadingFiles] = useState(false)
-  const [promptExpanded, setPromptExpanded] = useState(false)
+
+  // New data sources from nest/{agent_id}/
+  const [configYaml, setConfigYaml] = useState<string | null>(null)
+  const [loadingConfigYaml, setLoadingConfigYaml] = useState(false)
+  const [promptFiles, setPromptFiles] = useState<NestFileItem[]>([])
+  const [loadingPromptFiles, setLoadingPromptFiles] = useState(false)
+  const [skillDirs, setSkillDirs] = useState<NestFileItem[]>([])
+  const [loadingSkills, setLoadingSkills] = useState(false)
+  const [memoryItems, setMemoryItems] = useState<NestFileItem[]>([])
+  const [loadingMemory, setLoadingMemory] = useState(false)
+
+  // File viewer state
   const [viewingFile, setViewingFile] = useState<FileItemWithContent | null>(null)
   const [loadingFileContent, setLoadingFileContent] = useState(false)
-  const [tools, setTools] = useState<Tool[]>([])
-  const [loadingTools, setLoadingTools] = useState(false)
-  const [viewingTool, setViewingTool] = useState<Tool | null>(null)
-  const [viewingToolCode, setViewingToolCode] = useState<string | null>(null)
-  const [loadingToolCode, setLoadingToolCode] = useState(false)
+
   const scrollRef = useRef<HTMLDivElement>(null)
   const scrollPos = useRef(0)
 
+  // Load recent sessions
   useEffect(() => {
     if (!selectedAgent) return
     setLoadingSessions(true)
@@ -128,84 +152,91 @@ export function AgentPanel({ sessionId: _sessionId, agentId: _agentId, isActive:
       .finally(() => setLoadingSessions(false))
   }, [selectedAgent])
 
-  // Load full agent detail and config files
+  // Load agent detail
   useEffect(() => {
     if (!selectedAgent) return
-    const agentId = selectedAgent.agent_id
-
-    // Fetch full agent data (includes prompt)
-    getAgent(agentId)
-      .then(detail => {
-        setAgentDetail(detail)
-        // 加载配置文件（使用 agentDetail.cwd）
-        loadConfigFilesForAgent(detail)
-      })
+    getAgent(selectedAgent.agent_id)
+      .then(detail => setAgentDetail(detail))
       .catch(() => setAgentDetail(null))
   }, [selectedAgent])
 
-  // Load all tools for tool detail display
+  // Load config.yaml
   useEffect(() => {
-    setLoadingTools(true)
-    getTools()
-      .then(res => setTools(res.tools || []))
-      .catch(() => setTools([]))
-      .finally(() => setLoadingTools(false))
-  }, [])
-
-  // 独立的配置文件加载函数（可复用）
-  async function loadConfigFilesForAgent(agentDetail: Agent | null) {
     if (!selectedAgent) return
-    const agentId = selectedAgent.agent_id
+    setLoadingConfigYaml(true)
+    setConfigYaml(null)
+    apiClient.readFile('', `agent-station/nest/${selectedAgent.agent_id}/config.yaml`)
+      .then(res => setConfigYaml(res.content))
+      .catch(() => setConfigYaml(null))
+      .finally(() => setLoadingConfigYaml(false))
+  }, [selectedAgent])
 
-    setLoadingFiles(true)
-    setConfigFiles([])
+  // Load prompt files
+  useEffect(() => {
+    if (!selectedAgent) return
+    setLoadingPromptFiles(true)
+    setPromptFiles([])
+    apiClient.listFiles('', `agent-station/nest/${selectedAgent.agent_id}/prompts`)
+      .then(res => {
+        const files = (res.items || [])
+          .filter(item => item.type === 'file')
+          .map(item => ({
+            name: item.name,
+            type: item.type as 'file' | 'directory',
+            size: item.size,
+            full_path: item.full_path || `agent-station/nest/${selectedAgent.agent_id}/prompts/${item.name}`,
+          }))
+        setPromptFiles(files)
+      })
+      .catch(() => setPromptFiles([]))
+      .finally(() => setLoadingPromptFiles(false))
+  }, [selectedAgent])
 
-    // 动态构建搜索路径：首先尝试 cwd，然后回退到默认目录
-    const cwd = agentDetail?.cwd
-    const tryPaths = [
-      // 首先尝试 cwd（如果存在且是绝对路径）
-      ...(cwd && cwd.startsWith('/opt/claude/') ? [cwd] : []),
-      // 然后尝试各分类目录
-      `/opt/claude/business/${agentId}`,
-      `/opt/claude/agent-service/agents/${agentId}`,
-      `/opt/claude/tech/${agentId}`,
-      `/opt/claude/content/${agentId}`,
-      `/opt/claude/operations/${agentId}`,
-    ]
+  // Load skill directories
+  useEffect(() => {
+    if (!selectedAgent) return
+    setLoadingSkills(true)
+    setSkillDirs([])
+    apiClient.listFiles('', `agent-station/nest/${selectedAgent.agent_id}/skills`)
+      .then(res => {
+        const dirs = (res.items || [])
+          .filter(item => item.type === 'directory')
+          .map(item => ({
+            name: item.name,
+            type: item.type as 'file' | 'directory',
+            size: item.size,
+            full_path: item.full_path || `agent-station/nest/${selectedAgent.agent_id}/skills/${item.name}`,
+          }))
+        setSkillDirs(dirs)
+      })
+      .catch(() => setSkillDirs([]))
+      .finally(() => setLoadingSkills(false))
+  }, [selectedAgent])
 
-    for (const dirPath of tryPaths) {
-      try {
-        // 转换绝对路径为相对路径（相对于 /opt/claude）
-        const relativePath = dirPath.replace('/opt/claude/', '')
-        const res = await apiClient.listFiles('', relativePath)
-        if (res.items && res.items.length > 0) {
-          const files = res.items
-            .filter(item => item.type === 'file')
-            .map(item => ({
-              name: item.name,
-              type: item.type as 'file' | 'directory',
-              size: item.size,
-              full_path: item.full_path || `${dirPath}/${item.name}`,
-            }))
-          if (files.length > 0) {
-            setConfigFiles(files)
-            setLoadingFiles(false)
-            return
-          }
-        }
-      } catch {
-        // try next path
-      }
-    }
-    setLoadingFiles(false)
-  }
+  // Load memory directory
+  useEffect(() => {
+    if (!selectedAgent) return
+    setLoadingMemory(true)
+    setMemoryItems([])
+    apiClient.listFiles('', `agent-station/nest/${selectedAgent.agent_id}/memory`)
+      .then(res => {
+        const items = (res.items || []).map(item => ({
+          name: item.name,
+          type: item.type as 'file' | 'directory',
+          size: item.size,
+          full_path: item.full_path || `agent-station/nest/${selectedAgent.agent_id}/memory/${item.name}`,
+        }))
+        setMemoryItems(items)
+      })
+      .catch(() => setMemoryItems([]))
+      .finally(() => setLoadingMemory(false))
+  }, [selectedAgent])
 
-  const openConfigFile = useCallback(async (file: ConfigFileItem) => {
+  // Open a file in the FileViewer
+  const openFile = useCallback(async (file: NestFileItem) => {
     setLoadingFileContent(true)
     try {
-      // 转换绝对路径为相对路径（相对于 /opt/claude）
-      const relativePath = file.full_path.replace('/opt/claude/', '')
-      const res = await apiClient.readFile('', relativePath)
+      const res = await apiClient.readFile('', file.full_path)
       setViewingFile({
         name: file.name,
         type: 'file',
@@ -222,80 +253,62 @@ export function AgentPanel({ sessionId: _sessionId, agentId: _agentId, isActive:
     }
   }, [showToast])
 
-  // 打开工具代码查看
-  const openToolCode = useCallback(async (tool: Tool) => {
-    setViewingTool(tool)
-    setViewingToolCode(null)
-    setLoadingToolCode(true)
-
+  // Open a directory — show SKILL.md or first file
+  const openDir = useCallback(async (dir: NestFileItem) => {
+    setLoadingFileContent(true)
     try {
-      // 将 module_path 转换为文件路径
-      // 例如: "tools.builtin.read" -> "agent-service/tools/builtin/read.py"
-      const modulePath = tool.module_path.replace(/\./g, '/')
-      const relativePath = `${modulePath}.py`
-
-      // 使用文件 API 读取代码
-      const res = await apiClient.readFile('', relativePath)
-      setViewingToolCode(res.content)
-    } catch (err) {
-      console.error('Failed to load tool code:', err)
-      setViewingToolCode('// 无法加载工具代码，请检查文件路径是否正确。')
+      const res = await apiClient.listFiles('', dir.full_path)
+      const files = (res.items || []).filter(item => item.type === 'file')
+      if (files.length > 0) {
+        const target = files.find(f => f.name.toUpperCase() === 'SKILL.MD') ?? files.find(f => f.name.toUpperCase() === 'INDEX.MD') ?? files[0]!
+        const filePath = `${dir.full_path}/${target.name}`
+        const fileRes = await apiClient.readFile('', filePath)
+        setViewingFile({
+          name: `${dir.name}/${target.name}`,
+          type: 'file',
+          size: fileRes.size,
+          modified_time: new Date().toISOString(),
+          path: fileRes.path,
+          full_path: fileRes.full_path,
+          content: fileRes.content,
+        })
+      } else {
+        showToast('空文件夹', 'info')
+      }
+    } catch {
+      showToast('读取文件失败', 'error')
     } finally {
-      setLoadingToolCode(false)
+      setLoadingFileContent(false)
     }
-  }, [])
+  }, [showToast])
 
   const goToDetail = useCallback((agent: Agent) => {
     if (scrollRef.current) scrollPos.current = scrollRef.current.scrollTop
     setSelectedAgent(agent)
-    setIsEditing(false)
   }, [])
 
   const goBack = useCallback(() => {
     setSelectedAgent(null)
-    setIsEditing(false)
     setShowDeleteModal(false)
     requestAnimationFrame(() => {
       if (scrollRef.current) scrollRef.current.scrollTop = scrollPos.current
     })
   }, [])
 
-  const startEdit = useCallback(() => {
-    if (!selectedAgent || !agentDetail) return
-    setEditName(selectedAgent.name)
-    setEditPrompt(agentDetail.prompt || '')
-    setEditCwd(agentDetail?.cwd ?? selectedAgent.cwd ?? '')
-    setIsEditing(true)
-  }, [selectedAgent, agentDetail])
-
   // Detail view
   if (selectedAgent) {
     const status = getAgentStatus(selectedAgent, busyAgentIds)
     return (
-      <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: '#f9fafb' }}>
+      <div className="flex flex-col bg-surface-2" style={{ height: '100%' }}>
         {/* Top bar */}
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
+        <div className="flex items-center border-b border-border shrink-0" style={{
           padding: '8px 12px',
-          borderBottom: '1px solid #d1d5db',
           gap: 8,
-          flexShrink: 0,
         }}>
-          <button onClick={goBack} style={{ background: 'transparent', border: 'none', color: '#111827', cursor: 'pointer', padding: 4, display: 'flex' }}>
+          <button onClick={goBack} className="text-foreground" style={{ background: 'transparent', border: 'none', cursor: 'pointer', padding: 4, display: 'flex' }}>
             <ArrowLeft style={{ width: 18, height: 18 }} />
           </button>
-          <span style={{ flex: 1, fontSize: 14, fontWeight: 600, color: '#111827' }}>Agent 详情</span>
-          {!isEditing && (
-            <>
-              <button onClick={() => { if (agentDetail) startEdit() }} style={{ background: 'transparent', border: 'none', color: '#64748b', cursor: agentDetail ? 'pointer' : 'not-allowed', padding: 4, display: 'flex', opacity: agentDetail ? 1 : 0.4 }}>
-                <Pencil style={{ width: 15, height: 15 }} />
-              </button>
-              <button onClick={() => setShowDeleteModal(true)} style={{ background: 'transparent', border: 'none', color: '#64748b', cursor: 'pointer', padding: 4, display: 'flex' }}>
-                <Trash2 style={{ width: 15, height: 15 }} />
-              </button>
-            </>
-          )}
+          <span className="flex-1 text-sm font-semibold text-foreground">Agent 详情</span>
         </div>
 
         {/* Content */}
@@ -309,303 +322,163 @@ export function AgentPanel({ sessionId: _sessionId, agentId: _agentId, isActive:
             />
           </div>
 
-          {/* Name */}
-          {isEditing ? (
-            <input
-              value={editName}
-              onChange={e => setEditName(e.target.value)}
-              style={{
-                width: '100%',
-                padding: '8px 12px',
-                background: '#f3f4f6',
-                border: '1px solid #d1d5db',
-                borderRadius: 6,
-                color: '#111827',
-                fontSize: 16,
-                fontWeight: 600,
-                textAlign: 'center',
-                marginBottom: 12,
-                outline: 'none',
-              }}
-            />
-          ) : (
-            <div style={{ fontSize: 16, fontWeight: 600, color: '#111827', textAlign: 'center', marginBottom: 12 }}>
-              {selectedAgent.name}
-            </div>
-          )}
+          {/* Name (read-only) */}
+          <div className="text-base font-semibold text-foreground text-center" style={{ marginBottom: 4 }}>
+            {selectedAgent.name}
+          </div>
+          <div className="text-xs text-muted-foreground text-center" style={{ marginBottom: 12, userSelect: 'all', cursor: 'text' }}>
+            {selectedAgent.agent_id}
+          </div>
 
           {/* Status block */}
-          <div style={{
-            background: '#f3f4f6',
-            border: '1px solid #d1d5db',
-            borderRadius: 8,
+          <div className="bg-muted border border-border rounded-lg" style={{
             padding: 12,
             marginBottom: 16,
           }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-              <span style={{ fontSize: 12, color: '#64748b' }}>工作状态</span>
+              <span className="text-xs text-muted-foreground">工作状态</span>
               <StatusDot status={status} />
             </div>
             <div style={{ display: 'flex', gap: 16, fontSize: 12 }}>
-              <div><span style={{ color: '#64748b' }}>当前任务: </span><span style={{ color: '#111827' }}>-</span></div>
-              <div><span style={{ color: '#64748b' }}>队列: </span><span style={{ color: '#111827' }}>0</span></div>
-              <div><span style={{ color: '#64748b' }}>今日完成: </span><span style={{ color: '#111827' }}>0</span></div>
+              <div><span className="text-muted-foreground">当前任务: </span><span className="text-foreground">-</span></div>
+              <div><span className="text-muted-foreground">队列: </span><span className="text-foreground">0</span></div>
+              <div><span className="text-muted-foreground">今日完成: </span><span className="text-foreground">0</span></div>
             </div>
           </div>
 
-          {/* Description / System Prompt (edit mode) */}
-          {isEditing && (
-            <div style={{ marginBottom: 16 }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-                <div style={{ fontSize: 12, color: '#64748b' }}>System Prompt</div>
-                <button
-                  onClick={() => {
-                    setModalPromptValue(editPrompt)
-                    setShowPromptModal(true)
-                  }}
-                  style={{
-                    background: 'transparent',
-                    border: 'none',
-                    color: '#64748b',
-                    cursor: 'pointer',
-                    padding: 2,
-                    display: 'flex',
-                  }}
-                  title="全屏编辑"
-                >
-                  <Maximize2 style={{ width: 14, height: 14 }} />
-                </button>
-              </div>
-              <textarea
-                value={editPrompt}
-                onChange={e => setEditPrompt(e.target.value)}
-                rows={5}
-                style={{
-                  width: '100%',
-                  padding: '8px 12px',
-                  background: '#f3f4f6',
-                  border: '1px solid #d1d5db',
-                  borderRadius: 6,
-                  color: '#111827',
-                  fontSize: 13,
-                  resize: 'vertical',
-                  outline: 'none',
-                  fontFamily: 'monospace',
-                }}
-              />
-            </div>
-          )}
-
-          {/* Working directory (edit mode) */}
-          {isEditing && (
-            <div style={{ marginBottom: 16 }}>
-              <div style={{ fontSize: 12, color: '#64748b', marginBottom: 6 }}>工作目录 (cwd)</div>
-              <input
-                value={editCwd}
-                onChange={e => setEditCwd(e.target.value)}
-                placeholder="/opt/claude"
-                style={{
-                  width: '100%',
-                  padding: '8px 12px',
-                  background: '#f3f4f6',
-                  border: '1px solid #d1d5db',
-                  borderRadius: 6,
-                  color: '#111827',
-                  fontSize: 13,
-                  outline: 'none',
-                  boxSizing: 'border-box',
-                }}
-              />
-            </div>
-          )}
-
-          {/* System Prompt (collapsible) */}
-          {!isEditing && agentDetail?.prompt && (
-            <div style={{ marginBottom: 16 }}>
-              <button
-                onClick={() => setPromptExpanded(!promptExpanded)}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 4,
-                  fontSize: 12,
-                  color: '#64748b',
-                  background: 'transparent',
-                  border: 'none',
-                  cursor: 'pointer',
-                  padding: 0,
-                  marginBottom: 6,
-                }}
-              >
-                System Prompt
-                {promptExpanded ? <ChevronUp style={{ width: 14, height: 14 }} /> : <ChevronDown style={{ width: 14, height: 14 }} />}
-              </button>
-              {promptExpanded && (
-                <div style={{
-                  padding: '8px 10px',
-                  background: '#f3f4f6',
-                  border: '1px solid #d1d5db',
-                  borderRadius: 6,
-                  fontSize: 12,
-                  color: '#111827',
-                  lineHeight: 1.6,
-                  maxHeight: 200,
-                  overflow: 'auto',
-                  whiteSpace: 'pre-wrap',
-                  wordBreak: 'break-word',
-                }}>
-                  {agentDetail.prompt}
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Config Files */}
-          {!isEditing && (
-            <div style={{ marginBottom: 16 }}>
-              <div style={{ fontSize: 12, color: '#64748b', marginBottom: 6 }}>配置文件</div>
-              {loadingFiles ? (
-                <div style={{ fontSize: 12, color: '#475569', padding: '8px 0' }}>加载中...</div>
-              ) : configFiles.length === 0 ? (
-                <div style={{ fontSize: 12, color: '#475569', padding: '8px 0' }}>未找到配置文件</div>
-              ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                  {configFiles.map(file => (
-                    <div
-                      key={file.name}
-                      onClick={() => openConfigFile(file)}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 8,
-                        padding: '8px 10px',
-                        background: '#f3f4f6',
-                        border: '1px solid #d1d5db',
-                        borderRadius: 6,
-                        cursor: 'pointer',
-                      }}
-                    >
-                      <FileText style={{ width: 14, height: 14, color: '#0ea5e9', flexShrink: 0 }} />
-                      <span style={{ flex: 1, fontSize: 13, color: '#111827', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {file.name}
-                      </span>
-                      {file.size != null && (
-                        <span style={{ fontSize: 11, color: '#475569', flexShrink: 0 }}>
-                          {file.size > 1024 ? `${(file.size / 1024).toFixed(1)} KB` : `${file.size} B`}
-                        </span>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Skills / tools */}
-          {selectedAgent.tools && selectedAgent.tools.length > 0 && (
-            <div style={{ marginBottom: 16 }}>
-              <div style={{ fontSize: 12, color: '#64748b', marginBottom: 6 }}>技能</div>
-              {loadingTools ? (
-                <div style={{ fontSize: 12, color: '#475569', padding: '8px 0' }}>加载中...</div>
-              ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                  {selectedAgent.tools.map(toolName => {
-                    const toolDetail = tools.find(t => t.name.toLowerCase() === toolName.toLowerCase())
-                    return (
-                      <div
-                        key={toolName}
-                        onClick={() => toolDetail && openToolCode(toolDetail)}
-                        style={{
-                          padding: '8px 10px',
-                          background: '#f3f4f6',
-                          border: '1px solid #d1d5db',
-                          borderRadius: 6,
-                          cursor: toolDetail ? 'pointer' : 'default',
-                          transition: 'background 0.15s',
-                        }}
-                        onMouseEnter={e => {
-                          if (toolDetail) e.currentTarget.style.background = '#e5e7eb'
-                        }}
-                        onMouseLeave={e => {
-                          e.currentTarget.style.background = '#f3f4f6'
-                        }}
-                      >
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                            <Code style={{ width: 14, height: 14, color: '#0ea5e9', flexShrink: 0 }} />
-                            <span style={{ fontSize: 13, fontWeight: 600, color: '#0ea5e9' }}>
-                              {toolName}
-                            </span>
-                          </div>
-                          {toolDetail && (
-                            <ExternalLink style={{ width: 12, height: 12, color: '#94a3b8' }} />
-                          )}
-                        </div>
-                        {toolDetail?.description && (
-                          <div style={{
-                            fontSize: 11,
-                            color: '#64748b',
-                            marginTop: 4,
-                            overflow: 'hidden',
-                            textOverflow: 'ellipsis',
-                            display: '-webkit-box',
-                            WebkitLineClamp: 2,
-                            WebkitBoxOrient: 'vertical',
-                            lineHeight: 1.4,
-                          }}>
-                            {(toolDetail.description || '').split('\n')[0]}
-                          </div>
-                        )}
-                      </div>
-                    )
-                  })}
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Config info */}
+          {/* config.yaml (expanded by default) */}
           <div style={{ marginBottom: 16 }}>
-            <div style={{ fontSize: 12, color: '#64748b', marginBottom: 6 }}>配置信息</div>
-            <div style={{ fontSize: 12, color: '#475569', lineHeight: 1.8 }}>
-              <div>agent_id: <span style={{ color: '#111827' }}>{selectedAgent.agent_id}</span></div>
-              {selectedAgent.llm_model && <div>model: <span style={{ color: '#111827' }}>{selectedAgent.llm_model}</span></div>}
-              {(agentDetail?.cwd || selectedAgent.cwd) && <div>cwd: <span style={{ color: '#111827' }}>{agentDetail?.cwd || selectedAgent.cwd}</span></div>}
+            <div className="text-xs text-muted-foreground" style={{ marginBottom: 6, display: 'flex', alignItems: 'center', gap: 4 }}>
+              <FileText style={{ width: 12, height: 12 }} />
+              config.yaml
+              <span style={{ fontSize: 10, opacity: 0.6 }}>
+                nest/{selectedAgent.agent_id}/
+              </span>
             </div>
+            {loadingConfigYaml ? (
+              <div className="text-xs text-muted-foreground" style={{ padding: '8px 0' }}>加载中...</div>
+            ) : configYaml == null ? (
+              <div className="text-xs text-muted-foreground" style={{ padding: '8px 0' }}>未配置</div>
+            ) : (
+              <div className="bg-muted border border-border rounded-md font-mono" style={{
+                padding: '10px 12px',
+                fontSize: 11,
+                lineHeight: 1.7,
+                maxHeight: 300,
+                overflow: 'auto',
+                whiteSpace: 'pre',
+              }}>
+                {renderYamlHighlighted(configYaml)}
+              </div>
+            )}
+          </div>
+
+          {/* Prompts */}
+          <div style={{ marginBottom: 16 }}>
+            <div className="text-xs text-muted-foreground" style={{ marginBottom: 6 }}>Prompts</div>
+            {loadingPromptFiles ? (
+              <div className="text-xs text-muted-foreground" style={{ padding: '8px 0' }}>加载中...</div>
+            ) : promptFiles.length === 0 ? (
+              <div className="text-xs text-muted-foreground" style={{ padding: '8px 0' }}>暂无 Prompt 文件</div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                {promptFiles.map(file => (
+                  <div
+                    key={file.name}
+                    onClick={() => openFile(file)}
+                    className="flex items-center gap-2 bg-muted border border-border rounded-md cursor-pointer"
+                    style={{ padding: '8px 10px' }}
+                  >
+                    <FileText className="text-primary shrink-0" style={{ width: 14, height: 14 }} />
+                    <span className="flex-1 text-sm text-foreground truncate">{file.name}</span>
+                    {file.size != null && (
+                      <span className="text-muted-foreground shrink-0" style={{ fontSize: 11 }}>
+                        {file.size > 1024 ? `${(file.size / 1024).toFixed(1)} KB` : `${file.size} B`}
+                      </span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Skills */}
+          <div style={{ marginBottom: 16 }}>
+            <div className="text-xs text-muted-foreground" style={{ marginBottom: 6 }}>技能</div>
+            {loadingSkills ? (
+              <div className="text-xs text-muted-foreground" style={{ padding: '8px 0' }}>加载中...</div>
+            ) : skillDirs.length === 0 ? (
+              <div className="text-xs text-muted-foreground" style={{ padding: '8px 0' }}>暂无技能</div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                {skillDirs.map(dir => (
+                  <div
+                    key={dir.name}
+                    onClick={() => openDir(dir)}
+                    className="flex items-center gap-2 bg-muted border border-border rounded-md cursor-pointer"
+                    style={{ padding: '8px 10px' }}
+                  >
+                    <FolderOpen className="text-primary shrink-0" style={{ width: 14, height: 14 }} />
+                    <span className="flex-1 text-sm text-foreground truncate">{dir.name}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Memory */}
+          <div style={{ marginBottom: 16 }}>
+            <div className="text-xs text-muted-foreground" style={{ marginBottom: 6 }}>Memory</div>
+            {loadingMemory ? (
+              <div className="text-xs text-muted-foreground" style={{ padding: '8px 0' }}>加载中...</div>
+            ) : memoryItems.length === 0 ? (
+              <div className="text-xs text-muted-foreground" style={{ padding: '8px 0' }}>暂无记忆</div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                {memoryItems.map(item => (
+                  <div
+                    key={item.name}
+                    onClick={() => item.type === 'directory' ? openDir(item) : openFile(item)}
+                    className="flex items-center gap-2 bg-muted border border-border rounded-md cursor-pointer"
+                    style={{ padding: '8px 10px' }}
+                  >
+                    {item.type === 'directory' ? (
+                      <FolderOpen className="text-primary shrink-0" style={{ width: 14, height: 14 }} />
+                    ) : (
+                      <FileText className="text-primary shrink-0" style={{ width: 14, height: 14 }} />
+                    )}
+                    <span className="flex-1 text-sm text-foreground truncate">{item.name}</span>
+                    {item.type === 'file' && item.size != null && (
+                      <span className="text-muted-foreground shrink-0" style={{ fontSize: 11 }}>
+                        {item.size > 1024 ? `${(item.size / 1024).toFixed(1)} KB` : `${item.size} B`}
+                      </span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Recent work */}
           <div style={{ marginBottom: 16 }}>
-            <div style={{ fontSize: 12, color: '#64748b', marginBottom: 6 }}>最近工作</div>
+            <div className="text-xs text-muted-foreground" style={{ marginBottom: 6 }}>最近工作</div>
             {loadingSessions ? (
-              <div style={{ fontSize: 12, color: '#475569', padding: '8px 0' }}>加载中...</div>
+              <div className="text-xs text-muted-foreground" style={{ padding: '8px 0' }}>加载中...</div>
             ) : recentSessions.length === 0 ? (
-              <div style={{ fontSize: 12, color: '#475569', padding: '8px 0' }}>暂无记录</div>
+              <div className="text-xs text-muted-foreground" style={{ padding: '8px 0' }}>暂无记录</div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                 {recentSessions.map(session => (
                   <div
                     key={session.session_id}
-                    style={{
-                      padding: '8px 10px',
-                      background: '#f3f4f6',
-                      border: '1px solid #d1d5db',
-                      borderRadius: 6,
-                      cursor: 'pointer',
-                    }}
+                    className="bg-muted border border-border rounded-md cursor-pointer"
+                    style={{ padding: '8px 10px' }}
                     onClick={() => onSelectSession?.(session.session_id)}
                   >
-                    <div style={{
-                      fontSize: 13,
-                      color: '#111827',
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                      whiteSpace: 'nowrap',
-                      marginBottom: 2,
-                    }}>
+                    <div className="text-sm text-foreground truncate" style={{ marginBottom: 2 }}>
                       {session.title || '未命名会话'}
                     </div>
-                    <div style={{ fontSize: 11, color: '#475569' }}>
+                    <div className="text-muted-foreground" style={{ fontSize: 11 }}>
                       {formatRelativeTime(session.updated_at)}
                     </div>
                   </div>
@@ -613,175 +486,21 @@ export function AgentPanel({ sessionId: _sessionId, agentId: _agentId, isActive:
               </div>
             )}
           </div>
-
-          {/* Edit buttons */}
-          {isEditing && (
-            <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
-              <button
-                onClick={() => setIsEditing(false)}
-                style={{
-                  flex: 1,
-                  padding: '8px 0',
-                  background: 'transparent',
-                  border: '1px solid #d1d5db',
-                  borderRadius: 6,
-                  color: '#111827',
-                  fontSize: 13,
-                  cursor: 'pointer',
-                }}
-              >
-                取消
-              </button>
-              <button
-                onClick={async () => {
-                  setIsSaving(true)
-                  try {
-                    await updateChannel(selectedAgent.agent_id, { name: editName, prompt: editPrompt, cwd: editCwd || undefined })
-                    // Re-fetch agent detail to update non-edit mode display
-                    const updated = await getAgent(selectedAgent.agent_id)
-                    setAgentDetail(updated)
-                    showToast('Agent 已更新', 'success')
-                    setIsEditing(false)
-                  } catch {
-                    showToast('保存失败', 'error')
-                  } finally {
-                    setIsSaving(false)
-                  }
-                }}
-                disabled={isSaving}
-                style={{
-                  flex: 1,
-                  padding: '8px 0',
-                  background: isSaving ? '#0284c7' : '#0ea5e9',
-                  border: 'none',
-                  borderRadius: 6,
-                  color: '#fff',
-                  fontSize: 13,
-                  fontWeight: 600,
-                  cursor: isSaving ? 'not-allowed' : 'pointer',
-                  opacity: isSaving ? 0.7 : 1,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: 6,
-                }}
-              >
-                {isSaving && <Loader2 style={{ width: 14, height: 14, animation: 'spin 1s linear infinite' }} />}
-                保存
-              </button>
-            </div>
-          )}
-
-          {/* Full-screen prompt edit modal */}
-          {showPromptModal && (
-            <div
-              style={{ position: 'fixed', inset: 0, zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0, 0, 0, 0.6)' }}
-              onClick={() => setShowPromptModal(false)}
-            >
-              <div
-                style={{
-                  background: '#f9fafb',
-                  border: '1px solid #d1d5db',
-                  borderRadius: 12,
-                  padding: 20,
-                  width: '100%',
-                  maxWidth: 768,
-                  maxHeight: '80vh',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  margin: '0 16px',
-                }}
-                onClick={(e) => e.stopPropagation()}
-              >
-                <div style={{ fontSize: 15, fontWeight: 600, color: '#111827', marginBottom: 12 }}>
-                  编辑 System Prompt
-                </div>
-                <textarea
-                  autoFocus
-                  value={modalPromptValue}
-                  onChange={(e) => setModalPromptValue(e.target.value)}
-                  style={{
-                    flex: 1,
-                    width: '100%',
-                    minHeight: 300,
-                    padding: '12px',
-                    background: '#f3f4f6',
-                    border: '1px solid #d1d5db',
-                    borderRadius: 6,
-                    color: '#111827',
-                    fontSize: 13,
-                    fontFamily: 'monospace',
-                    resize: 'vertical',
-                    outline: 'none',
-                    whiteSpace: 'pre-wrap',
-                    lineHeight: 1.6,
-                  }}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Escape') {
-                      setShowPromptModal(false)
-                    }
-                  }}
-                />
-                <div style={{ display: 'flex', gap: 8, marginTop: 12, justifyContent: 'flex-end' }}>
-                  <button
-                    onClick={() => setShowPromptModal(false)}
-                    style={{
-                      padding: '8px 20px',
-                      background: 'transparent',
-                      border: '1px solid #d1d5db',
-                      borderRadius: 6,
-                      color: '#111827',
-                      fontSize: 13,
-                      cursor: 'pointer',
-                    }}
-                  >
-                    取消
-                  </button>
-                  <button
-                    onClick={() => {
-                      setEditPrompt(modalPromptValue)
-                      setShowPromptModal(false)
-                    }}
-                    style={{
-                      padding: '8px 20px',
-                      background: '#0ea5e9',
-                      border: 'none',
-                      borderRadius: 6,
-                      color: '#fff',
-                      fontSize: 13,
-                      fontWeight: 600,
-                      cursor: 'pointer',
-                    }}
-                  >
-                    确认
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
         </div>
 
         {/* Bottom button */}
-        {!isEditing && (
-          <div style={{ padding: 12, borderTop: '1px solid #d1d5db', flexShrink: 0 }}>
-            <button
-              onClick={() => onCreateConversation?.(selectedAgent.agent_id)}
-              style={{
-                width: '100%',
-                padding: '10px 0',
-                background: '#0ea5e9',
-                border: 'none',
-                borderRadius: 8,
-                color: '#fff',
-                fontSize: 14,
-                fontWeight: 600,
-                cursor: 'pointer',
-              }}
-            >
-              开始对话
-            </button>
-          </div>
-        )}
+        <div className="border-t border-border shrink-0" style={{ padding: 12 }}>
+          <button
+            onClick={() => onCreateConversation?.(selectedAgent.agent_id)}
+            className="w-full bg-primary text-white font-semibold rounded-lg text-sm cursor-pointer"
+            style={{
+              padding: '10px 0',
+              border: 'none',
+            }}
+          >
+            开始对话
+          </button>
+        </div>
 
         {/* File viewer loading overlay */}
         {loadingFileContent && (
@@ -794,134 +513,34 @@ export function AgentPanel({ sessionId: _sessionId, agentId: _agentId, isActive:
             justifyContent: 'center',
             zIndex: 200,
           }}>
-            <Loader2 style={{ width: 32, height: 32, color: '#0ea5e9', animation: 'spin 1s linear infinite' }} />
+            <Loader2 className="text-primary animate-spin" style={{ width: 32, height: 32 }} />
           </div>
         )}
 
         {/* Full-screen file viewer modal */}
         {viewingFile && (
           <div
-            style={{
-              position: 'fixed',
-              inset: 0,
-              background: '#f9fafb',
-              zIndex: 200,
-              display: 'flex',
-              flexDirection: 'column',
-            }}
+            className="fixed inset-0 bg-surface-2 flex flex-col"
+            style={{ zIndex: 200 }}
             onKeyDown={(e) => { if (e.key === 'Escape') setViewingFile(null) }}
           >
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 8,
+            <div className="flex items-center gap-2 border-b border-border shrink-0" style={{
               padding: '10px 16px',
               paddingTop: 'max(10px, env(safe-area-inset-top, 10px))',
-              borderBottom: '1px solid #d1d5db',
-              flexShrink: 0,
             }}>
               <button
                 onClick={() => setViewingFile(null)}
-                style={{ background: 'transparent', border: 'none', color: '#111827', cursor: 'pointer', padding: 4, display: 'flex' }}
+                className="text-foreground" style={{ background: 'transparent', border: 'none', cursor: 'pointer', padding: 4, display: 'flex' }}
               >
                 <X style={{ width: 18, height: 18 }} />
               </button>
-              <FileText style={{ width: 16, height: 16, color: '#0ea5e9' }} />
-              <span style={{ fontSize: 14, fontWeight: 600, color: '#111827', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              <FileText className="text-primary" style={{ width: 16, height: 16 }} />
+              <span className="text-sm font-semibold text-foreground flex-1 truncate">
                 {viewingFile.name}
               </span>
             </div>
             <div style={{ flex: 1, overflow: 'auto' }}>
               <FileViewer file={viewingFile} loading={false} error={null} onNavigateUp={() => setViewingFile(null)} />
-            </div>
-          </div>
-        )}
-
-        {/* Tool code viewer modal */}
-        {viewingTool && (
-          <div
-            style={{
-              position: 'fixed',
-              inset: 0,
-              background: '#f9fafb',
-              zIndex: 200,
-              display: 'flex',
-              flexDirection: 'column',
-            }}
-          >
-            {/* Header */}
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 8,
-              padding: '10px 16px',
-              borderBottom: '1px solid #d1d5db',
-              flexShrink: 0,
-            }}>
-              <button
-                onClick={() => {
-                  setViewingTool(null)
-                  setViewingToolCode(null)
-                }}
-                style={{ background: 'transparent', border: 'none', color: '#111827', cursor: 'pointer', padding: 4, display: 'flex' }}
-              >
-                <X style={{ width: 18, height: 18 }} />
-              </button>
-              <Wrench style={{ width: 16, height: 16, color: '#0ea5e9' }} />
-              <span style={{ fontSize: 14, fontWeight: 600, color: '#111827', flex: 1 }}>
-                工具: {viewingTool.name}
-              </span>
-            </div>
-
-            {/* Tool info */}
-            <div style={{
-              padding: '12px 16px',
-              background: '#f3f4f6',
-              borderBottom: '1px solid #d1d5db',
-              flexShrink: 0,
-            }}>
-              <div style={{ fontSize: 11, color: '#64748b', marginBottom: 4 }}>
-                模块: <span style={{ fontFamily: 'monospace', color: '#111827' }}>{viewingTool.module_path}</span>
-              </div>
-              <div style={{ fontSize: 11, color: '#64748b', marginBottom: 4 }}>
-                类名: <span style={{ fontFamily: 'monospace', color: '#111827' }}>{viewingTool.class_name}</span>
-              </div>
-              {viewingTool.description && (
-                <div style={{ fontSize: 12, color: '#475569', lineHeight: 1.5, marginTop: 8, whiteSpace: 'pre-wrap' }}>
-                  {viewingTool.description}
-                </div>
-              )}
-            </div>
-
-            {/* Code content */}
-            <div style={{ flex: 1, overflow: 'auto' }}>
-              {loadingToolCode ? (
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
-                  <Loader2 style={{ width: 32, height: 32, color: '#0ea5e9', animation: 'spin 1s linear infinite' }} />
-                </div>
-              ) : viewingToolCode ? (
-                <FileViewer
-                  file={{
-                    name: `${(viewingTool.module_path || 'tool').split('.').pop()}.py`,
-                    type: 'file',
-                    size: viewingToolCode.length,
-                    modified_time: new Date().toISOString(),
-                    path: viewingTool.module_path || 'tool',
-                    full_path: `/opt/claude/agent-service/${(viewingTool.module_path || 'tool').replace(/\./g, '/')}.py`,
-                    content: viewingToolCode,
-                  }}
-                  loading={false}
-                  error={null}
-                  onNavigateUp={() => {
-                    setViewingTool(null)
-                    setViewingToolCode(null)
-                  }}
-                />
-              ) : (
-                <div style={{ padding: 16, color: '#64748b', fontSize: 13 }}>
-                  无法加载工具代码
-                </div>
-              )}
             </div>
           </div>
         )}
@@ -937,33 +556,24 @@ export function AgentPanel({ sessionId: _sessionId, agentId: _agentId, isActive:
             justifyContent: 'center',
             zIndex: 100,
           }}>
-            <div style={{
-              background: '#f3f4f6',
-              border: '1px solid #d1d5db',
-              borderRadius: 12,
+            <div className="bg-muted border border-border rounded-xl text-center" style={{
               padding: 24,
               width: 320,
-              textAlign: 'center',
             }}>
-              <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 16 }}>
-                <AlertTriangle style={{ width: 40, height: 40, color: '#f59e0b' }} />
+              <div className="flex justify-center" style={{ marginBottom: 16 }}>
+                <AlertTriangle className="text-warning" style={{ width: 40, height: 40 }} />
               </div>
-              <div style={{ fontSize: 16, fontWeight: 600, color: '#111827', marginBottom: 8 }}>确认删除</div>
-              <div style={{ fontSize: 13, color: '#64748b', marginBottom: 20 }}>
+              <div className="text-base font-semibold text-foreground" style={{ marginBottom: 8 }}>确认删除</div>
+              <div className="text-sm text-muted-foreground" style={{ marginBottom: 20 }}>
                 确定要删除 Agent "{selectedAgent.name}" 吗？此操作无法撤销。
               </div>
               <div style={{ display: 'flex', gap: 8 }}>
                 <button
                   onClick={() => setShowDeleteModal(false)}
+                  className="flex-1 border border-border rounded-md text-foreground text-sm cursor-pointer"
                   style={{
-                    flex: 1,
                     padding: '8px 0',
                     background: 'transparent',
-                    border: '1px solid #d1d5db',
-                    borderRadius: 6,
-                    color: '#111827',
-                    fontSize: 13,
-                    cursor: 'pointer',
                   }}
                 >
                   取消
@@ -982,24 +592,16 @@ export function AgentPanel({ sessionId: _sessionId, agentId: _agentId, isActive:
                     }
                   }}
                   disabled={isDeleting}
+                  className="flex-1 bg-destructive text-white font-semibold rounded-md flex items-center justify-center gap-1.5"
                   style={{
-                    flex: 1,
                     padding: '8px 0',
-                    background: isDeleting ? '#991b1b' : '#ef4444',
                     border: 'none',
-                    borderRadius: 6,
-                    color: '#fff',
                     fontSize: 13,
-                    fontWeight: 600,
                     cursor: isDeleting ? 'not-allowed' : 'pointer',
                     opacity: isDeleting ? 0.7 : 1,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: 6,
                   }}
                 >
-                  {isDeleting && <Loader2 style={{ width: 14, height: 14, animation: 'spin 1s linear infinite' }} />}
+                  {isDeleting && <Loader2 className="animate-spin" style={{ width: 14, height: 14 }} />}
                   删除
                 </button>
               </div>
@@ -1012,21 +614,18 @@ export function AgentPanel({ sessionId: _sessionId, agentId: _agentId, isActive:
 
   // List view
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: '#f9fafb' }}>
-      <div ref={scrollRef} style={{ flex: 1, overflow: 'auto', padding: 12 }}>
-        <div style={{
-          display: 'flex',
-          gap: 8,
+    <div className="flex flex-col bg-surface-2" style={{ height: '100%' }}>
+      <div ref={scrollRef} className="flex-1 overflow-auto" style={{ padding: 12 }}>
+        <div className="flex gap-2 border-b border-border" style={{
           marginBottom: 12,
           padding: '0 0 12px',
-          borderBottom: '1px solid #d1d5db',
         }}>
           <MiniStat label="空闲" count={counts.idle} color="#22c55e" />
           <MiniStat label="工作中" count={counts.working} color="#f59e0b" />
           <MiniStat label="离线" count={counts.offline} color="#475569" />
         </div>
         {agents.length === 0 && (
-          <div style={{ textAlign: 'center', padding: '40px 0', color: '#475569', fontSize: 13 }}>
+          <div className="text-center text-muted-foreground text-sm" style={{ padding: '40px 0' }}>
             暂无 Agent
           </div>
         )}
@@ -1036,22 +635,11 @@ export function AgentPanel({ sessionId: _sessionId, agentId: _agentId, isActive:
             <button
               key={agent.agent_id}
               onClick={() => goToDetail(agent)}
+              className="flex items-center gap-3 w-full bg-muted border border-border rounded-lg cursor-pointer text-left transition-colors hover:bg-muted/80"
               style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 12,
-                width: '100%',
                 padding: 12,
                 marginBottom: 8,
-                background: '#f3f4f6',
-                border: '1px solid #d1d5db',
-                borderRadius: 8,
-                cursor: 'pointer',
-                textAlign: 'left',
-                transition: 'background 0.15s',
               }}
-              onMouseEnter={e => (e.currentTarget.style.background = '#e5e7eb')}
-              onMouseLeave={e => (e.currentTarget.style.background = '#f3f4f6')}
             >
               <AgentAvatar
                 agentId={agent.agent_id}
@@ -1060,61 +648,46 @@ export function AgentPanel({ sessionId: _sessionId, agentId: _agentId, isActive:
                 className="shrink-0"
               />
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 13, fontWeight: 600, color: '#111827', marginBottom: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                <div className="text-sm font-semibold text-foreground truncate" style={{ marginBottom: 2 }}>
                   {agent.name}
                 </div>
-                <div style={{ fontSize: 12, color: '#64748b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginBottom: 4 }}>
+                <div className="text-xs text-muted-foreground truncate" style={{ marginBottom: 4 }}>
                   {agent.config?.description || agent.agent_id}
                 </div>
                 <StatusDot status={status} />
               </div>
-              <ChevronRight style={{ width: 16, height: 16, color: '#475569', flexShrink: 0 }} />
+              <ChevronRight className="text-muted-foreground shrink-0" style={{ width: 16, height: 16 }} />
             </button>
           )
         })}
       </div>
 
       {/* Create button / form */}
-      <div style={{ padding: 12, borderTop: '1px solid #d1d5db', flexShrink: 0 }}>
+      <div className="border-t border-border shrink-0" style={{ padding: 12 }}>
         {showCreateForm ? (
-          <div style={{
-            background: '#f3f4f6',
-            border: '1px solid #d1d5db',
-            borderRadius: 8,
+          <div className="bg-muted border border-border rounded-lg" style={{
             padding: 12,
           }}>
             <input
               value={newAgentName}
               onChange={e => setNewAgentName(e.target.value)}
               placeholder="Agent 名称"
+              className="w-full bg-surface-2 border border-border rounded-md text-foreground outline-none box-border"
               style={{
-                width: '100%',
                 padding: '8px 10px',
-                background: '#f9fafb',
-                border: '1px solid #d1d5db',
-                borderRadius: 6,
-                color: '#111827',
                 fontSize: 13,
                 marginBottom: 8,
-                outline: 'none',
-                boxSizing: 'border-box',
               }}
             />
             <input
               value={newAgentId}
               onChange={e => setNewAgentId(e.target.value)}
               placeholder="Agent ID"
+              className="w-full bg-surface-2 border border-border rounded-md text-foreground outline-none box-border"
               style={{
-                width: '100%',
                 padding: '8px 10px',
-                background: '#f9fafb',
-                border: '1px solid #d1d5db',
-                borderRadius: 6,
-                color: '#111827',
                 fontSize: 13,
                 marginBottom: 8,
-                outline: 'none',
-                boxSizing: 'border-box',
               }}
             />
             <div style={{ display: 'flex', gap: 8 }}>
@@ -1124,15 +697,10 @@ export function AgentPanel({ sessionId: _sessionId, agentId: _agentId, isActive:
                   setNewAgentName('')
                   setNewAgentId('')
                 }}
+                className="flex-1 border border-border rounded-md text-foreground text-sm cursor-pointer"
                 style={{
-                  flex: 1,
                   padding: '8px 0',
                   background: 'transparent',
-                  border: '1px solid #d1d5db',
-                  borderRadius: 6,
-                  color: '#111827',
-                  fontSize: 13,
-                  cursor: 'pointer',
                 }}
               >
                 取消
@@ -1157,24 +725,16 @@ export function AgentPanel({ sessionId: _sessionId, agentId: _agentId, isActive:
                   }
                 }}
                 disabled={isCreatingAgent}
+                className="flex-1 bg-primary text-white font-semibold rounded-md flex items-center justify-center gap-1.5"
                 style={{
-                  flex: 1,
                   padding: '8px 0',
-                  background: isCreatingAgent ? '#0284c7' : '#0ea5e9',
                   border: 'none',
-                  borderRadius: 6,
-                  color: '#fff',
                   fontSize: 13,
-                  fontWeight: 600,
                   cursor: isCreatingAgent ? 'not-allowed' : 'pointer',
                   opacity: isCreatingAgent ? 0.7 : 1,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: 6,
                 }}
               >
-                {isCreatingAgent && <Loader2 style={{ width: 14, height: 14, animation: 'spin 1s linear infinite' }} />}
+                {isCreatingAgent && <Loader2 className="animate-spin" style={{ width: 14, height: 14 }} />}
                 创建
               </button>
             </div>
@@ -1182,19 +742,10 @@ export function AgentPanel({ sessionId: _sessionId, agentId: _agentId, isActive:
         ) : (
           <button
             onClick={() => setShowCreateForm(true)}
+            className="w-full border-2 border-dashed border-border rounded-lg text-muted-foreground text-sm cursor-pointer flex items-center justify-center gap-1.5"
             style={{
-              width: '100%',
               padding: '10px 0',
               background: 'transparent',
-              border: '2px dashed #d1d5db',
-              borderRadius: 8,
-              color: '#64748b',
-              fontSize: 13,
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: 6,
             }}
           >
             <Plus style={{ width: 14, height: 14 }} />

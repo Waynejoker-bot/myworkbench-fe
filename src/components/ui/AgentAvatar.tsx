@@ -44,16 +44,11 @@ export function AgentAvatar({ agentId, avatar, size = 32, className = '' }: Agen
   if (avatarIsEmoji) {
     return (
       <div
-        className={className}
+        className={`bg-muted border border-border flex items-center justify-center ${className}`}
         style={{
           width: size,
           height: size,
           borderRadius: Math.round(size * 0.25),
-          background: '#f3f4f6',
-          border: '1px solid #d1d5db',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
           fontSize: Math.round(size * 0.6),
         }}
       >
@@ -84,19 +79,14 @@ export function AgentAvatar({ agentId, avatar, size = 32, className = '' }: Agen
   // Fallback to Bot icon
   return (
     <div
-      className={className}
+      className={`bg-muted border border-border flex items-center justify-center ${className}`}
       style={{
         width: size,
         height: size,
         borderRadius: Math.round(size * 0.25),
-        background: '#f3f4f6',
-        border: '1px solid #d1d5db',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
       }}
     >
-      <Bot style={{ width: iconSize, height: iconSize, color: '#0ea5e9' }} />
+      <Bot className="text-primary" style={{ width: iconSize, height: iconSize }} />
     </div>
   );
 }

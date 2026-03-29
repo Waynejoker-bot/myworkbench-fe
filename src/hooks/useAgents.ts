@@ -36,7 +36,10 @@ export function useAgents() {
           return {
             ...agent,
             status: channel.status,  // 使用 channel 的实时状态
-            // 保留原有的所有 agent 信息
+            config: {
+              ...agent.config,
+              ...channel.config,  // 合并 channel 的 avatar、description 等
+            },
           };
         }
 

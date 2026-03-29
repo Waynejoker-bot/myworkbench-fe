@@ -100,15 +100,13 @@ export function ConversationList({
       <div className="p-2">
         {isLoading ? (
           <div
-            className="flex items-center justify-center h-32 text-sm"
-            style={{ color: "#64748b" }}
+            className="flex items-center justify-center h-32 text-sm text-muted-foreground"
           >
             加载中...
           </div>
         ) : sortedConversations.length === 0 ? (
           <div
-            className="flex items-center justify-center h-32 text-sm"
-            style={{ color: "#64748b" }}
+            className="flex items-center justify-center h-32 text-sm text-muted-foreground"
           >
             暂无会话
           </div>
@@ -120,13 +118,13 @@ export function ConversationList({
             const multiAgent = agentIds.length > 1;
 
             return (
-              <div key={conversation.id} className="relative" data-conversation-row>
+              <div key={conversation.id} className="relative border-b border-border" data-conversation-row>
                 <button
                   onClick={() => onSelectConversation(conversation.id)}
-                  className="w-full text-left p-3 rounded-xl mb-1 transition-all"
+                  className="w-full text-left p-3 rounded-xl mb-1 transition-colors duration-150"
                   style={{
                     background: isActive ? "rgba(14, 165, 233, 0.15)" : "transparent",
-                    borderLeft: isActive ? "3px solid #0ea5e9" : "2px solid transparent",
+                    borderLeft: isActive ? "3px solid hsl(var(--primary))" : "2px solid transparent",
                   }}
                   onMouseEnter={(e) => {
                     if (!isActive) e.currentTarget.style.background = "#e5e7eb";
@@ -145,11 +143,8 @@ export function ConversationList({
                       />
                       {multiAgent && (
                         <span
-                          className="absolute -bottom-1 -right-1 text-xs font-medium rounded px-1"
+                          className="absolute -bottom-1 -right-1 text-xs font-medium rounded px-1 bg-muted text-primary border border-border"
                           style={{
-                            background: "#f3f4f6",
-                            color: "#0ea5e9",
-                            border: "1px solid #d1d5db",
                             fontSize: "10px",
                             lineHeight: "14px",
                           }}
@@ -168,10 +163,9 @@ export function ConversationList({
                           value={editValue}
                           onChange={(e) => setEditValue(e.target.value)}
                           maxLength={50}
-                          className="text-xs font-semibold w-full bg-transparent outline-none truncate"
+                          className="text-xs font-semibold w-full bg-transparent outline-none truncate text-foreground"
                           style={{
-                            color: "#111827",
-                            borderBottom: "1px solid #0ea5e9",
+                            borderBottom: "1px solid hsl(var(--primary))",
                           }}
                           onBlur={handleEditBlur}
                           onKeyDown={handleEditKeyDown}
@@ -179,8 +173,7 @@ export function ConversationList({
                         />
                       ) : (
                         <p
-                          className="text-xs font-semibold truncate"
-                          style={{ color: "#111827" }}
+                          className="text-xs font-semibold truncate text-foreground"
                         >
                           {agent?.name || conversation.title || "新对话"}
                         </p>
@@ -190,22 +183,20 @@ export function ConversationList({
                       <div className="flex items-center justify-between gap-2 mt-0.5">
                         {conversation.lastMessage && (
                           <p
-                            className="text-xs truncate flex-1"
-                            style={{ color: "#64748b" }}
+                            className="text-xs truncate flex-1 text-muted-foreground"
                           >
                             {conversation.lastMessage}
                           </p>
                         )}
                         <div className="flex items-center gap-1 shrink-0">
-                          <span className="text-xs" style={{ color: "#475569" }}>
+                          <span className="text-xs text-muted-foreground">
                             {formatTime(conversation.timestamp)}
                           </span>
                           {/* Unread badge - only on non-active conversations */}
                           {!isActive && conversation.unreadCount > 0 && (
                             <span
-                              className="flex items-center justify-center rounded-full text-white font-medium"
+                              className="flex items-center justify-center rounded-full text-white font-medium bg-primary"
                               style={{
-                                background: "#0ea5e9",
                                 minWidth: "18px",
                                 height: "18px",
                                 fontSize: "11px",
@@ -223,14 +214,7 @@ export function ConversationList({
                               );
                               setDeleteConfirm(null);
                             }}
-                            className="p-1 rounded transition-colors cursor-pointer"
-                            style={{ color: "#475569" }}
-                            onMouseEnter={(e) =>
-                              (e.currentTarget.style.background = "#e5e7eb")
-                            }
-                            onMouseLeave={(e) =>
-                              (e.currentTarget.style.background = "transparent")
-                            }
+                            className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded transition-colors duration-150 cursor-pointer hover:bg-muted text-muted-foreground"
                           >
                             <MoreHorizontal className="h-4 w-4" />
                           </button>
@@ -243,11 +227,7 @@ export function ConversationList({
                 {/* Action Menu */}
                 {showMenu === conversation.id && (
                   <div
-                    className="absolute right-2 top-14 rounded-lg shadow-lg py-1 z-20 min-w-[120px]"
-                    style={{
-                      background: "#f3f4f6",
-                      border: "1px solid #d1d5db",
-                    }}
+                    className="absolute right-2 top-14 rounded-lg shadow-lg py-1 z-20 min-w-[120px] bg-muted border border-border"
                   >
                     <button
                       onClick={(e) => {
@@ -258,33 +238,19 @@ export function ConversationList({
                         setEditOriginalValue(conversation.title);
                         setTimeout(() => editRef.current?.select(), 0);
                       }}
-                      className="w-full px-3 py-2 text-left text-sm flex items-center gap-2 transition-colors"
-                      style={{ color: "#111827" }}
-                      onMouseEnter={(e) =>
-                        (e.currentTarget.style.background = "#e5e7eb")
-                      }
-                      onMouseLeave={(e) =>
-                        (e.currentTarget.style.background = "transparent")
-                      }
+                      className="w-full px-3 py-2 min-h-[44px] text-left text-sm flex items-center gap-2 transition-colors duration-150 hover:bg-muted text-foreground"
                     >
                       <Pencil className="h-4 w-4" />
                       重命名
                     </button>
-                    <div style={{ height: 1, background: "#d1d5db", margin: "2px 0" }} />
+                    <div className="bg-border" style={{ height: 1, margin: "2px 0" }} />
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
                         setDeleteConfirm(conversation.id);
                         setShowMenu(null);
                       }}
-                      className="w-full px-3 py-2 text-left text-sm flex items-center gap-2 transition-colors"
-                      style={{ color: "#ef4444" }}
-                      onMouseEnter={(e) =>
-                        (e.currentTarget.style.background = "rgba(239, 68, 68, 0.1)")
-                      }
-                      onMouseLeave={(e) =>
-                        (e.currentTarget.style.background = "transparent")
-                      }
+                      className="w-full px-3 py-2 min-h-[44px] text-left text-sm flex items-center gap-2 transition-colors duration-150 hover:bg-destructive/10 text-destructive"
                     >
                       <Trash2 className="h-4 w-4" />
                       删除会话
@@ -300,11 +266,7 @@ export function ConversationList({
                     onClick={() => setDeleteConfirm(null)}
                   >
                     <div
-                      className="rounded-xl shadow-2xl p-5 w-80"
-                      style={{
-                        background: "#f3f4f6",
-                        border: "1px solid #d1d5db",
-                      }}
+                      className="rounded-xl shadow-2xl p-5 w-80 bg-muted border border-border"
                       onClick={(e) => e.stopPropagation()}
                     >
                       <div className="flex items-center gap-3 mb-4">
@@ -312,33 +274,21 @@ export function ConversationList({
                           className="w-10 h-10 rounded-full flex items-center justify-center shrink-0"
                           style={{ background: "rgba(239, 68, 68, 0.15)" }}
                         >
-                          <Trash2 className="h-5 w-5" style={{ color: "#ef4444" }} />
+                          <Trash2 className="h-5 w-5 text-destructive" />
                         </div>
                         <span
-                          className="font-semibold text-base"
-                          style={{ color: "#111827" }}
+                          className="font-semibold text-base text-foreground"
                         >
                           确认删除
                         </span>
                       </div>
-                      <p className="text-sm mb-5" style={{ color: "#64748b" }}>
+                      <p className="text-sm mb-5 text-muted-foreground">
                         确定要删除会话 &ldquo;{conversation.title}&rdquo; 吗？此操作不可撤销。
                       </p>
                       <div className="flex gap-3">
                         <button
                           onClick={() => setDeleteConfirm(null)}
-                          className="flex-1 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
-                          style={{
-                            background: "#e5e7eb",
-                            color: "#111827",
-                            border: "1px solid #d1d5db",
-                          }}
-                          onMouseEnter={(e) =>
-                            (e.currentTarget.style.background = "#d1d5db")
-                          }
-                          onMouseLeave={(e) =>
-                            (e.currentTarget.style.background = "#e5e7eb")
-                          }
+                          className="flex-1 px-4 py-2 min-h-[44px] rounded-lg text-sm font-medium transition-colors duration-150 hover:bg-gray-300 bg-border text-foreground border border-border"
                         >
                           取消
                         </button>
@@ -348,18 +298,10 @@ export function ConversationList({
                             handleDelete(conversation.id);
                           }}
                           disabled={deletingId === conversation.id}
-                          className="flex-1 px-4 py-2 rounded-lg text-sm font-medium text-white transition-colors flex items-center justify-center gap-2"
+                          className={`flex-1 px-4 py-2 min-h-[44px] rounded-lg text-sm font-medium text-white transition-colors duration-150 hover:bg-red-600 flex items-center justify-center gap-2 ${deletingId === conversation.id ? '' : 'bg-destructive'}`}
                           style={{
-                            background: deletingId === conversation.id ? "#991b1b" : "#ef4444",
+                            ...(deletingId === conversation.id ? { background: "#991b1b" } : {}),
                             opacity: deletingId === conversation.id ? 0.7 : 1,
-                          }}
-                          onMouseEnter={(e) => {
-                            if (deletingId !== conversation.id)
-                              e.currentTarget.style.background = "#dc2626";
-                          }}
-                          onMouseLeave={(e) => {
-                            if (deletingId !== conversation.id)
-                              e.currentTarget.style.background = "#ef4444";
                           }}
                         >
                           {deletingId === conversation.id && (

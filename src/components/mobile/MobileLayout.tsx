@@ -161,27 +161,15 @@ export function MobileLayout({
 
   const renderChatListView = () => (
     <div
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        height: "100%",
-        background: "#ffffff",
-      }}
+      className="flex flex-col bg-card"
+      style={{ height: "100%" }}
     >
       {/* Header */}
       <header
-        style={{
-          height: 56,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          padding: "0 16px",
-          borderBottom: "1px solid #d1d5db",
-          background: "#f9fafb",
-          flexShrink: 0,
-        }}
+        className="flex items-center justify-between border-b border-border bg-surface-2 shrink-0"
+        style={{ height: 56, padding: "0 16px" }}
       >
-        <span style={{ color: "#111827", fontSize: 18, fontWeight: 600 }}>
+        <span className="text-foreground text-lg font-semibold">
           对话
         </span>
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
@@ -189,13 +177,12 @@ export function MobileLayout({
           <div className="relative" ref={userMenuRef}>
             <button
               onClick={() => setShowUserMenu(!showUserMenu)}
+              className="text-muted-foreground rounded-lg"
               style={{
                 background: "transparent",
                 border: "none",
-                color: "#64748b",
                 padding: 8,
                 cursor: "pointer",
-                borderRadius: 8,
               }}
             >
               <User style={{ width: 20, height: 20 }} />
@@ -204,28 +191,23 @@ export function MobileLayout({
             {/* User Dropdown Menu */}
             {showUserMenu && (
               <div
+                className="bg-card border border-border rounded-xl shadow-lg"
                 style={{
                   position: "absolute",
                   right: 0,
                   top: "100%",
                   marginTop: 4,
-                  background: "#ffffff",
-                  border: "1px solid #d1d5db",
-                  borderRadius: 12,
-                  boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
                   minWidth: 160,
                   overflow: "hidden",
                   zIndex: 50,
                 }}
               >
                 <div
-                  style={{
-                    padding: "12px 16px",
-                    borderBottom: "1px solid #d1d5db",
-                  }}
+                  className="border-b border-border"
+                  style={{ padding: "12px 16px" }}
                 >
-                  <div style={{ fontSize: 11, color: "#64748b", marginBottom: 2 }}>当前用户</div>
-                  <div style={{ fontSize: 14, fontWeight: 600, color: "#111827" }}>{username}</div>
+                  <div className="text-muted-foreground" style={{ fontSize: 11, marginBottom: 2 }}>当前用户</div>
+                  <div className="text-foreground font-semibold" style={{ fontSize: 14 }}>{username}</div>
                 </div>
                 <button
                   onClick={handleLogout}
@@ -241,8 +223,8 @@ export function MobileLayout({
                     cursor: "pointer",
                   }}
                 >
-                  <LogOut style={{ width: 16, height: 16, color: "#64748b" }} />
-                  <span style={{ fontSize: 14, color: "#111827" }}>退出登录</span>
+                  <LogOut className="text-muted-foreground" style={{ width: 16, height: 16 }} />
+                  <span className="text-foreground" style={{ fontSize: 14 }}>退出登录</span>
                 </button>
               </div>
             )}
@@ -251,10 +233,10 @@ export function MobileLayout({
           <button
             onClick={() => setShowAgentPopup(!showAgentPopup)}
             disabled={isCreating}
+            className={isCreating ? "text-muted-foreground" : "text-primary"}
             style={{
               background: "transparent",
               border: "none",
-              color: isCreating ? "#475569" : "#0ea5e9",
               padding: 8,
               cursor: isCreating ? "not-allowed" : "pointer",
               borderRadius: 8,
@@ -275,10 +257,8 @@ export function MobileLayout({
       {/* Agent selection popup */}
       {showAgentPopup && (
         <div
+          className="bg-muted border border-border rounded-xl"
           style={{
-            background: "#f3f4f6",
-            border: "1px solid #d1d5db",
-            borderRadius: 12,
             margin: "8px 16px 0",
             maxHeight: 240,
             overflowY: "auto",
@@ -286,7 +266,8 @@ export function MobileLayout({
         >
           {agents.length === 0 ? (
             <div
-              style={{ padding: "24px 16px", textAlign: "center", color: "#64748b", fontSize: 14 }}
+              className="text-center text-muted-foreground text-sm"
+              style={{ padding: "24px 16px" }}
             >
               暂无可用 Agent
             </div>
@@ -298,18 +279,12 @@ export function MobileLayout({
                   onCreateConversation(agent.agent_id);
                   setShowAgentPopup(false);
                 }}
+                className="w-full flex items-center gap-3 border-b border-border text-left cursor-pointer text-foreground"
                 style={{
-                  width: "100%",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 12,
                   padding: "12px 16px",
                   background: "transparent",
                   border: "none",
-                  borderBottom: "1px solid #d1d5db",
-                  textAlign: "left",
-                  cursor: "pointer",
-                  color: "#111827",
+                  borderBottom: "1px solid var(--border)",
                 }}
               >
                 <AgentAvatar
@@ -322,13 +297,8 @@ export function MobileLayout({
                   <div style={{ fontSize: 14, fontWeight: 500 }}>{agent.name}</div>
                   {agent.config?.description && (
                     <div
-                      style={{
-                        fontSize: 12,
-                        color: "#64748b",
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                        whiteSpace: "nowrap",
-                      }}
+                      className="text-muted-foreground truncate"
+                      style={{ fontSize: 12 }}
                     >
                       {agent.config.description}
                     </div>
@@ -356,36 +326,22 @@ export function MobileLayout({
 
   const renderChatConversationView = () => (
     <div
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        height: "100%",
-        background: "#ffffff",
-      }}
+      className="flex flex-col bg-card"
+      style={{ height: "100%" }}
     >
       {/* Header */}
       <header
-        style={{
-          height: 56,
-          display: "flex",
-          alignItems: "center",
-          gap: 12,
-          padding: "0 12px",
-          borderBottom: "1px solid #d1d5db",
-          background: "#f9fafb",
-          flexShrink: 0,
-        }}
+        className="flex items-center border-b border-border bg-surface-2 shrink-0"
+        style={{ height: 56, gap: 12, padding: "0 12px" }}
       >
         <button
           onClick={handleBackToList}
+          className="text-primary flex items-center"
           style={{
             background: "transparent",
             border: "none",
-            color: "#0ea5e9",
             padding: 4,
             cursor: "pointer",
-            display: "flex",
-            alignItems: "center",
           }}
         >
           <ArrowLeft style={{ width: 22, height: 22 }} />
@@ -398,26 +354,15 @@ export function MobileLayout({
         />
         <div style={{ flex: 1, minWidth: 0 }}>
           <div
-            style={{
-              color: "#111827",
-              fontSize: 15,
-              fontWeight: 600,
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-              whiteSpace: "nowrap",
-            }}
+            className="text-foreground font-semibold truncate"
+            style={{ fontSize: 15 }}
           >
             {activeAgent?.name || "对话"}
           </div>
           {activeAgent?.config?.description && (
             <div
-              style={{
-                color: "#64748b",
-                fontSize: 12,
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                whiteSpace: "nowrap",
-              }}
+              className="text-muted-foreground truncate"
+              style={{ fontSize: 12 }}
             >
               {activeAgent.config.description}
             </div>
@@ -428,13 +373,12 @@ export function MobileLayout({
         <div className="relative" ref={userMenuRef}>
           <button
             onClick={() => setShowUserMenu(!showUserMenu)}
+            className="text-muted-foreground rounded-lg"
             style={{
               background: "transparent",
               border: "none",
-              color: "#64748b",
               padding: 8,
               cursor: "pointer",
-              borderRadius: 8,
             }}
           >
             <User style={{ width: 20, height: 20 }} />
@@ -443,28 +387,23 @@ export function MobileLayout({
           {/* User Dropdown Menu */}
           {showUserMenu && (
             <div
+              className="bg-card border border-border rounded-xl shadow-lg"
               style={{
                 position: "absolute",
                 right: 0,
                 top: "100%",
                 marginTop: 4,
-                background: "#ffffff",
-                border: "1px solid #d1d5db",
-                borderRadius: 12,
-                boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
                 minWidth: 160,
                 overflow: "hidden",
                 zIndex: 50,
               }}
             >
               <div
-                style={{
-                  padding: "12px 16px",
-                  borderBottom: "1px solid #d1d5db",
-                }}
+                className="border-b border-border"
+                style={{ padding: "12px 16px" }}
               >
-                <div style={{ fontSize: 11, color: "#64748b", marginBottom: 2 }}>当前用户</div>
-                <div style={{ fontSize: 14, fontWeight: 600, color: "#111827" }}>{username}</div>
+                <div className="text-muted-foreground" style={{ fontSize: 11, marginBottom: 2 }}>当前用户</div>
+                <div className="text-foreground font-semibold" style={{ fontSize: 14 }}>{username}</div>
               </div>
               <button
                 onClick={handleLogout}
@@ -480,8 +419,8 @@ export function MobileLayout({
                   cursor: "pointer",
                 }}
               >
-                <LogOut style={{ width: 16, height: 16, color: "#64748b" }} />
-                <span style={{ fontSize: 14, color: "#111827" }}>退出登录</span>
+                <LogOut className="text-muted-foreground" style={{ width: 16, height: 16 }} />
+                <span className="text-foreground" style={{ fontSize: 14 }}>退出登录</span>
               </button>
             </div>
           )}
@@ -503,7 +442,8 @@ export function MobileLayout({
         >
           {isLoadingMore && (
             <div
-              style={{ textAlign: "center", padding: "8px 0", fontSize: 14, color: "#64748b" }}
+              className="text-center text-muted-foreground text-sm"
+              style={{ padding: "8px 0" }}
             >
               加载更多...
             </div>
@@ -521,23 +461,16 @@ export function MobileLayout({
         {!isNearBottom && (
           <button
             onClick={() => scrollToBottom("smooth")}
+            className="absolute bg-primary border-none flex items-center justify-center cursor-pointer rounded-full"
             style={{
-              position: "absolute",
               bottom: 12,
               right: 12,
               width: 36,
               height: 36,
-              borderRadius: "50%",
-              background: "#0ea5e9",
-              border: "none",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              cursor: "pointer",
               zIndex: 10,
             }}
           >
-            <ChevronDown style={{ width: 20, height: 20, color: "#fff" }} />
+            <ChevronDown className="text-white" style={{ width: 20, height: 20 }} />
           </button>
         )}
       </div>
@@ -558,26 +491,15 @@ export function MobileLayout({
 
   const renderSettingsMenuView = () => (
     <div
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        height: "100%",
-        background: "#ffffff",
-      }}
+      className="flex flex-col bg-card"
+      style={{ height: "100%" }}
     >
       {/* Header */}
       <header
-        style={{
-          height: 56,
-          display: "flex",
-          alignItems: "center",
-          padding: "0 16px",
-          borderBottom: "1px solid #d1d5db",
-          background: "#f9fafb",
-          flexShrink: 0,
-        }}
+        className="flex items-center border-b border-border bg-surface-2 shrink-0"
+        style={{ height: 56, padding: "0 16px" }}
       >
-        <span style={{ color: "#111827", fontSize: 18, fontWeight: 600 }}>
+        <span className="text-foreground text-lg font-semibold">
           配置
         </span>
       </header>
@@ -590,48 +512,36 @@ export function MobileLayout({
             <button
               key={item.key}
               onClick={() => handleOpenPanel(item.key)}
+              className="w-full flex items-center border-b border-border text-left cursor-pointer"
               style={{
-                width: "100%",
-                display: "flex",
-                alignItems: "center",
                 gap: 14,
                 padding: "14px 16px",
                 background: "transparent",
                 border: "none",
-                borderBottom: "1px solid #d1d5db",
-                textAlign: "left",
-                cursor: "pointer",
+                borderBottom: "1px solid var(--border)",
               }}
             >
               <div
+                className="bg-muted border border-border flex items-center justify-center shrink-0"
                 style={{
                   width: 40,
                   height: 40,
                   borderRadius: 10,
-                  background: "#f3f4f6",
-                  border: "1px solid #d1d5db",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  flexShrink: 0,
                 }}
               >
-                <Icon style={{ width: 20, height: 20, color: "#0ea5e9" }} />
+                <Icon className="text-primary" style={{ width: 20, height: 20 }} />
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div
-                  style={{ color: "#111827", fontSize: 15, fontWeight: 500 }}
-                >
+                <div className="text-foreground" style={{ fontSize: 15, fontWeight: 500 }}>
                   {item.label}
                 </div>
-                <div
-                  style={{ color: "#64748b", fontSize: 12, marginTop: 2 }}
-                >
+                <div className="text-muted-foreground" style={{ fontSize: 12, marginTop: 2 }}>
                   {item.description}
                 </div>
               </div>
               <ChevronRight
-                style={{ width: 18, height: 18, color: "#475569", flexShrink: 0 }}
+                className="text-muted-foreground shrink-0"
+                style={{ width: 18, height: 18 }}
               />
             </button>
           );
@@ -651,41 +561,27 @@ export function MobileLayout({
 
     return (
       <div
-        style={{
-          display: "flex",
-          flexDirection: "column",
-          height: "100%",
-          background: "#ffffff",
-        }}
+        className="flex flex-col bg-card"
+        style={{ height: "100%" }}
       >
         {/* Header */}
         <header
-          style={{
-            height: 56,
-            display: "flex",
-            alignItems: "center",
-            gap: 12,
-            padding: "0 12px",
-            borderBottom: "1px solid #d1d5db",
-            background: "#f9fafb",
-            flexShrink: 0,
-          }}
+          className="flex items-center border-b border-border bg-surface-2 shrink-0"
+          style={{ height: 56, gap: 12, padding: "0 12px" }}
         >
           <button
             onClick={handleBackToMenu}
+            className="text-primary flex items-center"
             style={{
               background: "transparent",
               border: "none",
-              color: "#0ea5e9",
               padding: 4,
               cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
             }}
           >
             <ArrowLeft style={{ width: 22, height: 22 }} />
           </button>
-          <span style={{ color: "#111827", fontSize: 16, fontWeight: 600 }}>
+          <span className="text-foreground font-semibold" style={{ fontSize: 16 }}>
             {panelInfo?.label || ""}
           </span>
         </header>
@@ -730,12 +626,8 @@ export function MobileLayout({
 
   return (
     <div
-      style={{
-        height: "100vh",
-        display: "flex",
-        flexDirection: "column",
-        background: "#ffffff",
-      }}
+      className="flex flex-col bg-card"
+      style={{ height: "100vh" }}
     >
       {/* Main content area above bottom tab */}
       <div

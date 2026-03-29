@@ -5,8 +5,9 @@
  */
 
 import type { RawMessage } from '@/types/message-station';
-import type { AnyContentBlock } from '@/types/content-block';
-import { ContentType, createMarkdownBlock } from '@/types/content-block';
+import type { AnyContentBlock, TaskCardContentBlock } from '@/types/content-block';
+import { ContentType, createMarkdownBlock, type ThinkingBlock } from '@/types/content-block';
+import type { TaskCard } from '@/types/task-card';
 
 /**
  * Determine message role based on source only
@@ -119,31 +120,170 @@ export function parsePayload(payload: string): string {
  * - JSON with type="audio" and data array -> AudioBlock (future)
  * - JSON with type="video" and data array -> VideoBlock (future)
  */
-export function parsePayloadToBlocks(payload: string): AnyContentBlock[] {
-  // Debug: log the payload for troubleshooting
-  console.log('[parsePayloadToBlocks] Input payload:', payload.substring(0, 200));
+/** Optional context from the RawMessage for task card type inference */
+export interface PayloadContext {
+  source?: string;
+  target?: string;
+}
 
+export function parsePayloadToBlocks(payload: string, ctx?: PayloadContext): AnyContentBlock[] {
   try {
     const parsed = JSON.parse(payload);
-    console.log('[parsePayloadToBlocks] Parsed data:', parsed);
+
+    // Handle TASK_CARD payload: { type: 'TASK_CARD', taskCard: {...} }
+    // This is the rich task card format from Agent prompt output
+    if (parsed.type === 'TASK_CARD' && parsed.taskCard) {
+      const taskCard = parsed.taskCard as TaskCard;
+      return [
+        {
+          type: ContentType.TASK_CARD,
+          id: `task-card-${taskCard.id}`,
+          taskCardId: taskCard.id,
+          taskCardData: taskCard,
+        } as TaskCardContentBlock,
+      ];
+    }
+
+    // Handle backend task payload: { type: 'task', action: 'assignment'|'notification', data: [...] }
+    // This is the Agent-to-Agent task delegation format from message-station
+    if (parsed.type === 'task' && parsed.data && Array.isArray(parsed.data)) {
+      const taskAction = parsed.action || 'assignment';
+      const blocks: AnyContentBlock[] = [];
+
+      for (const item of parsed.data) {
+        if (item.itemType === 'task' && item.taskItem) {
+          const ti = item.taskItem;
+          const taskId = ti.task_id || `task-${Date.now()}`;
+
+          // Map backend task status to frontend TaskCard status
+          const statusMap: Record<string, string> = {
+            pending: 'suggested',
+            running: 'dispatched',
+            completed: 'completed',
+            failed: 'completed',
+            cancelled: 'completed',
+          };
+
+          // Infer cardType:
+          // - action="assignment" → always action_suggestion (task dispatched to someone)
+          // - action="notification" → action_suggestion (task completion report)
+          // - Only visit_report if title explicitly says 拜访汇报/会议纪要
+          let inferredCardType: 'visit_report' | 'action_suggestion' = 'action_suggestion';
+          if (taskAction === 'assignment' || taskAction === 'notification') {
+            // assignment = manager dispatching task → action_suggestion
+            // notification = task completion notice → action_suggestion
+            // Only override to visit_report if title contains explicit visit report keywords
+            const titleHints = /拜访汇报|会议纪要|沟通记录|visit report/i.test(ti.title || '');
+            if (titleHints) {
+              inferredCardType = 'visit_report';
+            }
+          }
+
+          // Build a TaskCard from the backend task payload
+          const taskCard: TaskCard = {
+            id: taskId,
+            title: ti.title || '任务',
+            summary: ti.description || '',
+            cardType: inferredCardType,
+            sourceAgent: ti.creator_id || 'system',
+            priority: 'medium' as const,
+            status: (taskAction === 'notification'
+              ? (statusMap[ti.status] || 'completed')
+              : inferredCardType === 'visit_report'
+                ? 'draft'
+                : (statusMap[ti.status] || 'suggested')) as any,
+            assigneeRole: taskAction === 'assignment' ? 'sales' : 'manager',
+            assigneeName: taskAction === 'assignment' ? ti.assignee_id : ti.creator_id,
+            _messageTarget: ctx?.target || '',  // internal: who received this message
+            createdAt: ti.created_at || new Date().toISOString(),
+            updatedAt: ti.updated_at || new Date().toISOString(),
+            trustFlags: [],
+            businessContext: { conversationId: ti.source_session_id },
+            explainability: {
+              confidence: 0.9,
+              freshness: ti.created_at || new Date().toISOString(),
+              dataTimeRange: '',
+              coverage: 1,
+              missingData: [],
+              keyReasons: ti.result ? [`执行结果: ${ti.result}`] : [],
+              evidenceRefs: [],
+            },
+            // Type-specific fields
+            ...(inferredCardType === 'visit_report' ? {
+              meetingNotes: [{
+                label: ti.title || '拜访记录',
+                content: ti.description || '',
+              }],
+            } : {
+              suggestedAction: {
+                label: taskAction === 'notification'
+                  ? `任务${ti.status === 'completed' ? '已完成' : '进行中'}`
+                  : ti.title || '待执行任务',
+                editableDraft: ti.description || '',
+                dueDate: undefined,
+              },
+            }),
+            ...(ti.result && taskAction === 'notification' ? {
+              feedback: {
+                result: ti.status === 'completed' ? 'completed' as const : 'partial' as const,
+                customerReaction: ti.result,
+                nextStepSuggestion: '',
+                submittedAt: ti.updated_at || new Date().toISOString(),
+              },
+            } : {}),
+          } as unknown as TaskCard;
+
+          // Register in store
+          blocks.push({
+            type: ContentType.TASK_CARD,
+            id: `task-card-${taskId}`,
+            taskCardId: taskId,
+            taskCardData: taskCard,
+          } as TaskCardContentBlock);
+        }
+      }
+
+      if (blocks.length > 0) return blocks;
+    }
 
     // Handle standard payload format with type and data array
     if (parsed.type && parsed.data && Array.isArray(parsed.data)) {
       const blocks: AnyContentBlock[] = [];
 
+      // Find the index of the last tool item to determine thinking vs response
+      // TextItems AFTER the last tool call are always response (final answer)
+      // TextItems BEFORE tool calls are thinking (intermediate reasoning)
+      let lastToolIndex = -1;
+      for (let i = parsed.data.length - 1; i >= 0; i--) {
+        if (parsed.data[i].itemType === 'tool') {
+          lastToolIndex = i;
+          break;
+        }
+      }
+
       // Process all items
-      for (const item of parsed.data) {
+      for (let idx = 0; idx < parsed.data.length; idx++) {
+        const item = parsed.data[idx];
         switch (item.itemType) {
           case 'text':
-            // Always treat text as markdown for better formatting
-            console.log('[parsePayloadToBlocks] Creating MarkdownBlock with text:', item.text);
-            blocks.push(createMarkdownBlock(item.text || ''));
+            // TextItem after the last tool call = response (final answer)
+            // TextItem before/between tool calls = thinking (if role says so or tools exist)
+            const isAfterLastTool = lastToolIndex >= 0 && idx > lastToolIndex;
+            const isThinking = !isAfterLastTool && (item.role === 'thinking' || (lastToolIndex >= 0 && idx < lastToolIndex));
+
+            if (isThinking && item.text?.trim()) {
+              blocks.push({
+                type: ContentType.THINKING,
+                content: item.text || '',
+              } as ThinkingBlock);
+            } else {
+              blocks.push(createMarkdownBlock(item.text || ''));
+            }
             break;
 
           case 'tool':
             const tool = item.toolItem;
             if (tool) {
-              console.log('[parsePayloadToBlocks] Creating tool block:', tool);
               blocks.push({
                 id: `tool-${Date.now()}-${Math.random()}`,
                 type: ContentType.TOOL_CALL,
@@ -233,6 +373,8 @@ export function blocksToPlainText(blocks: AnyContentBlock[]): string {
       case ContentType.MARKDOWN:
         // For markdown, strip markdown syntax to get plain text
         return stripMarkdown((block as any).content);
+      case ContentType.THINKING:
+        return (block as any).content;
       case ContentType.CODE:
         return (block as any).code;
       case ContentType.CODE_RESULT:

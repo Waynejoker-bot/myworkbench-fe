@@ -307,7 +307,7 @@ export default function ChatBoxPage() {
 
   return (
     <PanelProvider>
-      <div style={{ height: '100vh', background: '#ffffff', display: 'flex', flexDirection: 'column' }}>
+      <div className="bg-card" style={{ height: '100vh', display: 'flex', flexDirection: 'column' }}>
         {/* Main Content */}
         <div style={{ flex: 1, display: 'flex', overflow: 'hidden', position: 'relative' }}>
           {/* Sidebar */}
@@ -326,18 +326,15 @@ export default function ChatBoxPage() {
           />
 
           {/* Center - Chat Area */}
-          <main className="flex-1 flex flex-col min-w-0 overflow-hidden" style={{ backgroundColor: '#ffffff' }}>
+          <main className="flex-1 flex flex-col min-w-0 overflow-hidden bg-card">
             {/* Chat top bar - current Agent info */}
             {activeConversationId && (
-              <div style={{
+              <div className="border-b border-border bg-muted shrink-0" style={{
                 padding: '0 24px',
                 height: 56,
-                borderBottom: '1px solid #d1d5db',
                 display: 'flex',
                 alignItems: 'center',
                 gap: 10,
-                flexShrink: 0,
-                background: '#f9fafb',
               }}>
                 <AgentAvatar
                   agentId={selectedAgentId}
@@ -345,11 +342,11 @@ export default function ChatBoxPage() {
                   size={32}
                 />
                 <div>
-                  <div style={{ fontWeight: 600, fontSize: 14, color: '#111827' }}>
+                  <div className="text-foreground" style={{ fontWeight: 600, fontSize: 14 }}>
                     {agentConfigs.get(selectedAgentId)?.name || selectedAgentId || '选择 Agent'}
                   </div>
-                  <div style={{ fontSize: 11, color: '#64748b', display: 'flex', alignItems: 'center', gap: 4 }}>
-                    <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#22c55e', display: 'inline-block' }} />
+                  <div className="text-muted-foreground" style={{ fontSize: 11, display: 'flex', alignItems: 'center', gap: 4 }}>
+                    <span className="bg-success inline-block rounded-full" style={{ width: 6, height: 6 }} />
                     在线
                   </div>
                 </div>
@@ -364,7 +361,7 @@ export default function ChatBoxPage() {
                 onScroll={handleScroll}
               >
                 {isLoadingMore && (
-                  <div className="text-center py-2 text-sm" style={{ color: '#64748b' }}>
+                  <div className="text-center py-2 text-sm text-muted-foreground">
                     加载更多...
                   </div>
                 )}
@@ -381,8 +378,7 @@ export default function ChatBoxPage() {
               {!isNearBottom && uiMessages.length > 0 && (
                 <button
                   onClick={() => scrollToBottom('smooth')}
-                  className="absolute bottom-20 right-8 w-10 h-10 rounded-full flex items-center justify-center shadow-lg transition-opacity z-10 hover:opacity-90"
-                  style={{ backgroundColor: '#0ea5e9' }}
+                  className="absolute bottom-20 right-8 w-10 h-10 rounded-full flex items-center justify-center shadow-lg transition-opacity z-10 hover:opacity-90 bg-primary"
                   title="滚动到底部"
                 >
                   <ChevronDown className="h-5 w-5 text-white" />

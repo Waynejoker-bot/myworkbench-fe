@@ -49,10 +49,10 @@ export function FilesPanel({ sessionId: _sessionId, agentId: _agentId, isActive:
   // 401 / needs login state
   if (needsLogin || (!token && !loading)) {
     return (
-      <div className="flex flex-col items-center justify-center h-full" style={{ background: '#f9fafb' }}>
-        <AlertCircle className="h-8 w-8 mb-3" style={{ color: '#f59e0b' }} />
-        <div className="text-sm font-medium" style={{ color: '#111827' }}>需要登录</div>
-        <div className="text-xs mt-1" style={{ color: '#64748b' }}>请先登录后再访问文件系统</div>
+      <div className="flex flex-col items-center justify-center h-full bg-surface-2">
+        <AlertCircle className="h-8 w-8 mb-3 text-warning" />
+        <div className="text-sm font-medium text-foreground">需要登录</div>
+        <div className="text-xs mt-1 text-muted-foreground">请先登录后再访问文件系统</div>
       </div>
     )
   }
@@ -60,18 +60,17 @@ export function FilesPanel({ sessionId: _sessionId, agentId: _agentId, isActive:
   // File preview view
   if (selectedFile) {
     return (
-      <div className="flex flex-col h-full" style={{ background: '#f9fafb', color: '#111827' }}>
+      <div className="flex flex-col h-full bg-surface-2 text-foreground">
         {/* Top bar with back button */}
-        <div className="flex items-center gap-2 px-3 py-2 shrink-0" style={{ borderBottom: '1px solid #d1d5db' }}>
+        <div className="flex items-center gap-2 px-3 py-2 shrink-0 border-b border-border">
           <button
             onClick={handleBack}
-            className="p-1.5 rounded-lg transition-colors hover:opacity-80"
-            style={{ background: '#f3f4f6' }}
+            className="p-1.5 rounded-lg transition-colors hover:opacity-80 bg-muted"
             title="返回目录"
           >
-            <ArrowLeft className="h-4 w-4" style={{ color: '#111827' }} />
+            <ArrowLeft className="h-4 w-4 text-foreground" />
           </button>
-          <span className="text-sm font-medium truncate" style={{ color: '#111827' }}>
+          <span className="text-sm font-medium truncate text-foreground">
             {selectedFile.name}
           </span>
         </div>
@@ -90,9 +89,9 @@ export function FilesPanel({ sessionId: _sessionId, agentId: _agentId, isActive:
 
   // Directory view
   return (
-    <div className="flex flex-col h-full" style={{ background: '#f9fafb', color: '#111827' }}>
+    <div className="flex flex-col h-full bg-surface-2 text-foreground">
       {/* Breadcrumb */}
-      <div className="px-3 py-2 shrink-0" style={{ borderBottom: '1px solid #d1d5db' }}>
+      <div className="px-3 py-2 shrink-0 border-b border-border">
         <Breadcrumb path={currentPath} rootPath={rootPath} onNavigate={listDirectory} />
       </div>
 
@@ -100,25 +99,24 @@ export function FilesPanel({ sessionId: _sessionId, agentId: _agentId, isActive:
       <div className="flex-1 overflow-auto">
         {loading ? (
           <div className="flex flex-col items-center justify-center h-full gap-3">
-            <Loader2 className="h-6 w-6 animate-spin" style={{ color: '#0ea5e9' }} />
-            <span className="text-sm" style={{ color: '#64748b' }}>加载中...</span>
+            <Loader2 className="h-6 w-6 animate-spin text-primary" />
+            <span className="text-sm text-muted-foreground">加载中...</span>
           </div>
         ) : error ? (
           <div className="flex flex-col items-center justify-center h-full gap-3 px-4">
-            <AlertCircle className="h-6 w-6" style={{ color: '#ef4444' }} />
-            <span className="text-sm text-center" style={{ color: '#ef4444' }}>{error}</span>
+            <AlertCircle className="h-6 w-6 text-destructive" />
+            <span className="text-sm text-center text-destructive">{error}</span>
             <button
               onClick={() => listDirectory(currentPath)}
-              className="text-xs px-3 py-1.5 rounded-lg transition-colors hover:opacity-80"
-              style={{ background: '#f3f4f6', color: '#0ea5e9', border: '1px solid #d1d5db' }}
+              className="text-xs px-3 py-1.5 rounded-lg transition-colors hover:opacity-80 bg-muted text-primary border border-border"
             >
               重试
             </button>
           </div>
         ) : fileTree.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full gap-3">
-            <FolderOpen className="h-8 w-8" style={{ color: '#64748b' }} />
-            <span className="text-sm" style={{ color: '#64748b' }}>空文件夹</span>
+            <FolderOpen className="h-8 w-8 text-muted-foreground" />
+            <span className="text-sm text-muted-foreground">空文件夹</span>
           </div>
         ) : (
           <FileList

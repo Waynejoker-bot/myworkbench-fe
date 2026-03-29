@@ -49,19 +49,14 @@ export default function LoginPage() {
 
   return (
     <div
-      className="min-h-screen flex items-center justify-center px-4"
-      style={{ backgroundColor: "#ffffff" }}
+      className="min-h-screen flex items-center justify-center px-4 bg-card"
     >
       <div
-        className="w-full max-w-sm rounded-xl p-8"
-        style={{
-          backgroundColor: "#f9fafb",
-          border: "1px solid #d1d5db",
-        }}
+        className="w-full max-w-sm rounded-xl p-8 bg-surface-2 border border-border"
       >
         {/* Brand */}
         <h1
-          className="text-3xl font-bold text-center mb-8"
+          className="text-3xl font-bold text-center mb-8 font-display"
           style={{
             background: "linear-gradient(135deg, #0ea5e9, #38bdf8)",
             WebkitBackgroundClip: "text",
@@ -79,12 +74,7 @@ export default function LoginPage() {
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               placeholder="用户名"
-              className="w-full px-4 py-3 rounded-lg text-sm outline-none transition-colors"
-              style={{
-                backgroundColor: "#f3f4f6",
-                border: "1px solid #d1d5db",
-                color: "#111827",
-              }}
+              className="w-full px-4 py-3 rounded-lg text-sm outline-none transition-colors bg-muted border border-border text-foreground"
             />
           </div>
 
@@ -95,20 +85,10 @@ export default function LoginPage() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="密码"
-              className="w-full px-4 py-3 rounded-lg text-sm outline-none transition-colors"
-              style={{
-                backgroundColor: "#f3f4f6",
-                border: error
-                  ? "1px solid #ef4444"
-                  : "1px solid #d1d5db",
-                color: "#111827",
-              }}
+              className={`w-full px-4 py-3 rounded-lg text-sm outline-none transition-colors bg-muted text-foreground border ${error ? "border-destructive" : "border-border"}`}
             />
             {error && (
-              <p
-                className="mt-2 text-sm"
-                style={{ color: "#ef4444" }}
-              >
+              <p className="mt-2 text-sm text-destructive">
                 {error}
               </p>
             )}
@@ -118,20 +98,18 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={isLoading || !username.trim() || !password.trim()}
-            className="w-full py-3 rounded-lg text-sm font-medium text-white transition-opacity disabled:opacity-50"
-            style={{ backgroundColor: "#0ea5e9" }}
+            className="w-full py-3 rounded-lg text-sm font-medium text-white transition-opacity disabled:opacity-50 bg-primary"
           >
             {isLoading ? "登录中..." : "登录"}
           </button>
 
           {/* Register link */}
-          <p className="text-center text-sm" style={{ color: "#6b7280" }}>
+          <p className="text-center text-sm text-muted-foreground">
             还没有账号？{" "}
             <button
               type="button"
               onClick={() => navigate("/register")}
-              className="font-medium hover:underline"
-              style={{ color: "#0ea5e9" }}
+              className="font-medium hover:underline text-primary"
             >
               立即注册
             </button>

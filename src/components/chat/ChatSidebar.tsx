@@ -1,8 +1,8 @@
 import { useState, useRef, useEffect, useMemo } from "react";
-import { Plus, ChevronLeft, ChevronRight, Loader2, LogOut, User, MessageSquare } from "lucide-react";
-import { Link, useLocation } from "react-router-dom";
+import { Plus, ChevronLeft, ChevronRight, Loader2, LogOut, User, Settings } from "lucide-react";
 import { AgentAvatar } from "@/components/ui/AgentAvatar";
 import { ConversationList } from "./ConversationList";
+import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { useAuth } from "@/contexts/AuthContext";
 import type { Conversation } from "@/hooks/useConversations";
 import type { Agent } from "@/api/agent";
@@ -35,7 +35,6 @@ export function ChatSidebar({
   onCreateConversation,
 }: ChatSidebarProps) {
   const { logout } = useAuth();
-  const location = useLocation();
   const [showAgentPopup, setShowAgentPopup] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const popupRef = useRef<HTMLDivElement>(null);
@@ -70,72 +69,18 @@ export function ChatSidebar({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [showUserMenu]);
 
-  const handleLogout = async () => {
-    await logout();
-    setShowUserMenu(false);
-  };
-
   if (sidebarCollapsed) {
     return (
       <aside
-        style={{ background: "#f9fafb", borderRight: "1px solid #d1d5db" }}
-        className="flex flex-col w-12 items-center py-4 shrink-0 relative"
+        className="flex flex-col w-12 items-center py-3 shrink-0 relative bg-muted/50 border-r border-border"
       >
-        <div className="flex flex-col gap-2 items-center">
-          {/* User Menu Button */}
-          <div className="relative" ref={userMenuRef}>
-            <button
-              onClick={() => setShowUserMenu(!showUserMenu)}
-              className="p-2 rounded-lg transition-colors shrink-0"
-              style={{ color: "#64748b" }}
-              onMouseEnter={(e) => (e.currentTarget.style.background = "#e5e7eb")}
-              onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
-              title="用户菜单"
-            >
-              <User className="h-5 w-5" />
-            </button>
-
-            {/* User Dropdown Menu */}
-            {showUserMenu && (
-              <div
-                className="absolute left-full ml-2 top-0 rounded-xl shadow-2xl z-30 overflow-hidden min-w-48"
-                style={{
-                  background: "#ffffff",
-                  border: "1px solid #d1d5db",
-                }}
-              >
-                <div
-                  className="px-4 py-3"
-                  style={{ borderBottom: "1px solid #d1d5db" }}
-                >
-                  <div className="text-xs" style={{ color: "#64748b" }}>当前用户</div>
-                  <div className="font-medium" style={{ color: "#111827" }}>{username}</div>
-                </div>
-                <button
-                  onClick={handleLogout}
-                  className="w-full flex items-center gap-3 px-4 py-3 transition-colors text-left"
-                  onMouseEnter={(e) => (e.currentTarget.style.background = "#f3f4f6")}
-                  onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
-                >
-                  <LogOut className="h-4 w-4" style={{ color: "#64748b" }} />
-                  <span style={{ color: "#111827" }}>退出登录</span>
-                </button>
-              </div>
-            )}
-          </div>
-
-          {/* Expand Button */}
-          <button
-            onClick={() => onSetSidebarCollapsed(false)}
-            className="p-2 rounded-lg transition-colors shrink-0"
-            style={{ color: "#64748b" }}
-            onMouseEnter={(e) => (e.currentTarget.style.background = "#e5e7eb")}
-            onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
-            title="展开会话列表"
-          >
-            <ChevronRight className="h-5 w-5" />
-          </button>
-        </div>
+        <button
+          onClick={() => onSetSidebarCollapsed(false)}
+          className="p-2 rounded-lg transition-colors duration-150 text-primary hover:bg-muted"
+          title="展开会话列表"
+        >
+          <ChevronRight className="h-5 w-5" />
+        </button>
       </aside>
     );
   }
@@ -144,113 +89,42 @@ export function ChatSidebar({
 
   return (
     <aside
-      style={{ background: "#f9fafb", borderRight: "1px solid #d1d5db" }}
-      className="flex flex-col w-64 overflow-hidden shrink-0"
+      className="flex flex-col w-64 overflow-hidden shrink-0 bg-muted/50 border-r border-border"
     >
-      {/* Header */}
+      {/* Header — Brand + Collapse */}
       <header
-        style={{ borderBottom: "1px solid #d1d5db" }}
-        className="h-14 flex items-center px-4 shrink-0"
+        className="h-14 flex items-center px-4 shrink-0 border-b border-border"
       >
-        {/* User Menu */}
-        <div className="flex items-center gap-2 flex-1 relative" ref={userMenuRef}>
-          <button
-            onClick={() => setShowUserMenu(!showUserMenu)}
-            className="flex items-center gap-2 flex-1 rounded-lg transition-colors p-1"
-            style={{ color: "#111827" }}
-            onMouseEnter={(e) => (e.currentTarget.style.background = "#e5e7eb")}
-            onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
-            title="用户菜单"
-          >
-            <div className="w-8 h-8 rounded-full overflow-hidden flex items-center justify-center" style={{ background: "#0ea5e9" }}>
-              <User className="h-5 w-5 text-white" />
-            </div>
-            <span className="font-semibold truncate">{username}</span>
-          </button>
-
-          {/* User Dropdown Menu */}
-          {showUserMenu && (
-            <div
-              className="absolute left-0 top-full mt-2 rounded-xl shadow-2xl z-30 overflow-hidden min-w-48"
-              style={{
-                background: "#ffffff",
-                border: "1px solid #d1d5db",
-              }}
-            >
-              <div
-                className="px-4 py-3 border-b border-gray-200"
-                style={{ borderBottom: "1px solid #d1d5db" }}
-              >
-                <div className="text-xs" style={{ color: "#64748b" }}>当前用户</div>
-                <div className="font-medium" style={{ color: "#111827" }}>{username}</div>
-              </div>
-              <button
-                onClick={handleLogout}
-                className="w-full flex items-center gap-3 px-4 py-3 transition-colors text-left"
-                onMouseEnter={(e) => (e.currentTarget.style.background = "#f3f4f6")}
-                onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
-              >
-                <LogOut className="h-4 w-4" style={{ color: "#64748b" }} />
-                <span style={{ color: "#111827" }}>退出登录</span>
-              </button>
-            </div>
-          )}
+        <div className="flex items-center gap-2 flex-1 min-w-0">
+          <span className="text-primary font-bold text-base tracking-tight truncate">引力引擎 ARM</span>
         </div>
         <button
           onClick={() => onSetSidebarCollapsed(true)}
-          className="p-2 rounded-lg transition-colors shrink-0"
-          style={{ color: "#64748b" }}
-          onMouseEnter={(e) => (e.currentTarget.style.background = "#e5e7eb")}
-          onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+          className="p-2 rounded-lg transition-colors duration-150 shrink-0 text-muted-foreground hover:bg-muted"
           title="收起会话列表"
         >
           <ChevronLeft className="h-4 w-4" />
         </button>
       </header>
 
-      {/* Nav Links */}
-      <div style={{ borderBottom: "1px solid #d1d5db" }} className="px-2 py-2 flex flex-col gap-1">
-        <Link
-          to="/chat"
-          className="flex items-center gap-2.5 px-3 py-2 rounded-lg transition-colors"
-          style={{
-            background: location.pathname === "/chat" ? "rgba(14, 165, 233, 0.12)" : "transparent",
-            color: location.pathname === "/chat" ? "#0ea5e9" : "#4b5563",
-            textDecoration: "none",
-          }}
-          onMouseEnter={(e) => {
-            if (location.pathname !== "/chat") e.currentTarget.style.background = "#e5e7eb";
-          }}
-          onMouseLeave={(e) => {
-            if (location.pathname !== "/chat") e.currentTarget.style.background = "transparent";
-          }}
-        >
-          <MessageSquare className="h-4 w-4 shrink-0" />
-          <span className="text-sm font-medium">AI 对话</span>
-        </Link>
-      </div>
-
       {/* New Conversation & Refresh */}
-      <div style={{ borderBottom: "1px solid #d1d5db" }} className="p-4">
+      <div className="p-4 border-b border-border">
         <div className="flex gap-2 relative" ref={popupRef}>
           <button
             onClick={() => {
               if (!isCreating) setShowAgentPopup(!showAgentPopup);
             }}
             disabled={isCreating}
-            className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl transition-colors font-medium"
+            className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl transition-colors duration-150 font-medium bg-muted text-foreground border border-border"
             style={{
-              background: "#f3f4f6",
-              color: "#111827",
-              border: "1px solid #d1d5db",
               opacity: isCreating ? 0.6 : 1,
               cursor: isCreating ? "not-allowed" : "pointer",
             }}
             onMouseEnter={(e) => {
-              if (!isCreating) e.currentTarget.style.background = "#e5e7eb";
+              if (!isCreating) e.currentTarget.style.background = "hsl(var(--muted))";
             }}
             onMouseLeave={(e) => {
-              e.currentTarget.style.background = "#f3f4f6";
+              e.currentTarget.style.background = "";
             }}
           >
             {isCreating ? (
@@ -264,18 +138,15 @@ export function ChatSidebar({
           {/* Agent Selection Popup */}
           {showAgentPopup && (
             <div
-              className="absolute left-0 right-0 top-full mt-2 rounded-xl shadow-2xl z-30 overflow-hidden"
+              className="absolute left-0 right-0 top-full mt-2 rounded-xl shadow-2xl z-30 overflow-hidden bg-muted border border-border"
               style={{
-                background: "#f3f4f6",
-                border: "1px solid #d1d5db",
                 maxHeight: "320px",
                 overflowY: "auto",
               }}
             >
               {agentList.length === 0 ? (
                 <div
-                  className="px-4 py-6 text-center text-sm"
-                  style={{ color: "#64748b" }}
+                  className="px-4 py-6 text-center text-sm text-muted-foreground"
                 >
                   暂无可用 Agent
                 </div>
@@ -287,8 +158,7 @@ export function ChatSidebar({
                       onCreateConversation(agent.agent_id);
                       setShowAgentPopup(false);
                     }}
-                    className="w-full flex items-center gap-3 px-4 py-3 transition-colors text-left"
-                    style={{ borderBottom: "1px solid #d1d5db" }}
+                    className="w-full flex items-center gap-3 px-4 py-3 transition-colors duration-150 text-left border-b border-border"
                     onMouseEnter={(e) => (e.currentTarget.style.background = "#e5e7eb")}
                     onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
                   >
@@ -303,23 +173,18 @@ export function ChatSidebar({
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
                         <span
-                          className="text-sm font-medium truncate"
-                          style={{ color: "#111827" }}
+                          className="text-sm font-medium truncate text-foreground"
                         >
                           {agent.name}
                         </span>
                         {/* Online status dot */}
                         <span
-                          className="w-2 h-2 rounded-full shrink-0"
-                          style={{
-                            background: agent.enabled !== false ? "#22c55e" : "#64748b",
-                          }}
+                          className={`w-2 h-2 rounded-full shrink-0 ${agent.enabled !== false ? "bg-success" : "bg-muted-foreground"}`}
                         />
                       </div>
                       {agent.config?.description && (
                         <p
-                          className="text-xs truncate mt-0.5"
-                          style={{ color: "#64748b" }}
+                          className="text-xs truncate mt-0.5 text-muted-foreground"
                         >
                           {agent.config.description}
                         </p>
@@ -343,6 +208,37 @@ export function ChatSidebar({
         onDeleteConversation={onDeleteConversation}
         onUpdateTitle={onUpdateTitle}
       />
+
+      {/* Footer — User + Menu */}
+      <div className="px-3 py-3 border-t border-border mt-auto relative" ref={userMenuRef}>
+        <button
+          onClick={() => setShowUserMenu(!showUserMenu)}
+          className="w-full flex items-center gap-2 px-1 py-1 rounded-lg transition-colors duration-150 hover:bg-muted"
+        >
+          <div className="w-6 h-6 rounded-full flex items-center justify-center bg-muted shrink-0">
+            <User className="h-3.5 w-3.5 text-muted-foreground" />
+          </div>
+          <span className="text-xs text-muted-foreground truncate flex-1 text-left">{username}</span>
+          <Settings className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+        </button>
+
+        {/* User Menu Popup */}
+        {showUserMenu && (
+          <div className="absolute left-3 right-3 bottom-full mb-2 rounded-xl shadow-2xl z-30 overflow-hidden bg-background border border-border">
+            <div className="flex items-center justify-between px-4 py-3 border-b border-border">
+              <span className="text-xs text-muted-foreground">外观</span>
+              <ThemeToggle />
+            </div>
+            <button
+              onClick={() => { logout(); setShowUserMenu(false); }}
+              className="w-full flex items-center gap-3 px-4 py-3 transition-colors duration-150 text-left hover:bg-muted"
+            >
+              <LogOut className="h-4 w-4 text-muted-foreground" />
+              <span className="text-sm text-foreground">退出登录</span>
+            </button>
+          </div>
+        )}
+      </div>
     </aside>
   );
 }

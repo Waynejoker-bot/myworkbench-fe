@@ -149,23 +149,17 @@ export function SkillsPanel({ agentId }: PanelProps) {
       <div className="flex items-center gap-0.5 flex-wrap">
         <button
           onClick={handleGoHome}
-          className="flex items-center gap-0.5 text-xs px-1.5 py-0.5 rounded transition-colors"
-          style={{ color: "#0ea5e9", cursor: "pointer" }}
-          onMouseEnter={(e) => (e.currentTarget.style.background = "#f0f9ff")}
-          onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+          className="flex items-center gap-0.5 text-xs px-1.5 py-0.5 rounded transition-colors text-primary cursor-pointer hover:bg-primary/5"
         >
           <Home className="h-3 w-3" />
           Skills
         </button>
         {pathParts.map((part, i) => (
           <span key={i} className="flex items-center gap-0.5">
-            <ChevronRight className="h-3 w-3" style={{ color: "#9ca3af" }} />
+            <ChevronRight className="h-3 w-3 text-muted-foreground" />
             <button
               onClick={() => handleBreadcrumbClick(i)}
-              className="text-xs px-1.5 py-0.5 rounded transition-colors"
-              style={{ color: "#0ea5e9", cursor: "pointer" }}
-              onMouseEnter={(e) => (e.currentTarget.style.background = "#f0f9ff")}
-              onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+              className="text-xs px-1.5 py-0.5 rounded transition-colors text-primary cursor-pointer hover:bg-primary/5"
             >
               {part}
             </button>
@@ -177,11 +171,11 @@ export function SkillsPanel({ agentId }: PanelProps) {
 
   if (!agentId) {
     return (
-      <div style={{ height: "100%", background: "#f9fafb", padding: 16 }}>
-        <div style={{ fontSize: 14, fontWeight: 600, color: "#111827", marginBottom: 12 }}>
+      <div className="bg-surface-2 p-4" style={{ height: "100%" }}>
+        <div className="text-sm font-semibold text-foreground mb-3">
           Skills
         </div>
-        <div style={{ textAlign: "center", padding: "40px 0", color: "#475569", fontSize: 13 }}>
+        <div className="text-center text-muted-foreground text-sm" style={{ padding: "40px 0" }}>
           暂无可查看的 Skills
         </div>
       </div>
@@ -190,13 +184,13 @@ export function SkillsPanel({ agentId }: PanelProps) {
 
   if (loading && items.length === 0) {
     return (
-      <div style={{ height: "100%", background: "#f9fafb", padding: 16 }}>
-        <div style={{ fontSize: 14, fontWeight: 600, color: "#111827", marginBottom: 12 }}>
+      <div className="bg-surface-2 p-4" style={{ height: "100%" }}>
+        <div className="text-sm font-semibold text-foreground mb-3">
           Skills
         </div>
         <div className="flex items-center justify-center" style={{ padding: "40px 0" }}>
-          <Loader2 className="h-5 w-5 animate-spin" style={{ color: "#0ea5e9" }} />
-          <span className="ml-2 text-sm" style={{ color: "#6b7280" }}>加载中...</span>
+          <Loader2 className="h-5 w-5 animate-spin text-primary" />
+          <span className="ml-2 text-sm text-muted-foreground">加载中...</span>
         </div>
       </div>
     );
@@ -204,16 +198,15 @@ export function SkillsPanel({ agentId }: PanelProps) {
 
   if (error) {
     return (
-      <div style={{ height: "100%", background: "#f9fafb", padding: 16 }}>
-        <div style={{ fontSize: 14, fontWeight: 600, color: "#111827", marginBottom: 12 }}>
+      <div className="bg-surface-2 p-4" style={{ height: "100%" }}>
+        <div className="text-sm font-semibold text-foreground mb-3">
           Skills
         </div>
-        <div style={{ textAlign: "center", padding: "20px 0" }}>
-          <p className="text-sm" style={{ color: "#ef4444" }}>{error}</p>
+        <div className="text-center" style={{ padding: "20px 0" }}>
+          <p className="text-sm text-destructive">{error}</p>
           <button
             onClick={() => loadSkills()}
-            className="mt-3 px-3 py-1.5 rounded-lg text-xs font-medium text-white"
-            style={{ background: "#0ea5e9" }}
+            className="mt-3 px-3 py-1.5 rounded-lg text-xs font-medium text-white bg-primary"
           >
             重试
           </button>
@@ -224,22 +217,20 @@ export function SkillsPanel({ agentId }: PanelProps) {
 
   if (selectedFile) {
     return (
-      <div style={{ height: "100%", background: "#f9fafb", display: "flex", flexDirection: "column" }}>
+      <div className="bg-surface-2 flex flex-col" style={{ height: "100%" }}>
         {/* File content header */}
-        <div style={{ padding: "12px 16px 8px", borderBottom: "1px solid #e5e7eb", background: "#ffffff" }}>
+        <div className="border-b border-border bg-card" style={{ padding: "12px 16px 8px" }}>
           <button
             onClick={() => setSelectedFile(null)}
-            className="flex items-center gap-1.5 text-xs transition-colors"
-            style={{ color: "#64748b", background: "none", border: "none", cursor: "pointer", padding: "4px 8px", borderRadius: 6 }}
-            onMouseEnter={(e) => (e.currentTarget.style.background = "#f3f4f6")}
-            onMouseLeave={(e) => (e.currentTarget.style.background = "none")}
+            className="flex items-center gap-1.5 text-xs transition-colors text-muted-foreground hover:bg-muted"
+            style={{ background: "none", border: "none", cursor: "pointer", padding: "4px 8px", borderRadius: 6 }}
           >
             ← 返回
           </button>
-          <div style={{ fontSize: 14, fontWeight: 600, color: "#111827", marginTop: 4 }}>
+          <div className="text-sm font-semibold text-foreground" style={{ marginTop: 4 }}>
             {selectedFile.name}
           </div>
-          <div style={{ fontSize: 11, color: "#9ca3af", marginTop: 2, fontFamily: "monospace" }}>
+          <div className="text-muted-foreground font-mono" style={{ fontSize: 11, marginTop: 2 }}>
             {renderBreadcrumb()}
           </div>
         </div>
@@ -248,20 +239,14 @@ export function SkillsPanel({ agentId }: PanelProps) {
         <div className="flex-1 overflow-auto p-4">
           {loadingContent ? (
             <div className="flex items-center justify-center" style={{ padding: "60px 0" }}>
-              <Loader2 className="h-5 w-5 animate-spin" style={{ color: "#0ea5e9" }} />
+              <Loader2 className="h-5 w-5 animate-spin text-primary" />
             </div>
           ) : contentError ? (
-            <p className="text-sm" style={{ color: "#ef4444" }}>{contentError}</p>
+            <p className="text-sm text-destructive">{contentError}</p>
           ) : (
             <pre
-              className="text-xs leading-relaxed whitespace-pre-wrap"
+              className="text-xs leading-relaxed whitespace-pre-wrap text-foreground font-mono bg-card border border-border rounded-lg p-4"
               style={{
-                color: "#374151",
-                fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
-                background: "#ffffff",
-                border: "1px solid #e5e7eb",
-                borderRadius: 8,
-                padding: 16,
                 margin: 0,
                 whiteSpace: "pre-wrap",
                 wordBreak: "break-word",
@@ -276,13 +261,13 @@ export function SkillsPanel({ agentId }: PanelProps) {
   }
 
   return (
-    <div style={{ height: "100%", background: "#f9fafb", display: "flex", flexDirection: "column" }}>
+    <div className="bg-surface-2 flex flex-col" style={{ height: "100%" }}>
       {/* Header */}
-      <div style={{ padding: "12px 16px 8px", borderBottom: "1px solid #e5e7eb", background: "#ffffff" }}>
-        <div style={{ fontSize: 14, fontWeight: 600, color: "#111827", marginBottom: 4 }}>
+      <div className="border-b border-border bg-card" style={{ padding: "12px 16px 8px" }}>
+        <div className="text-sm font-semibold text-foreground" style={{ marginBottom: 4 }}>
           Skills
         </div>
-        <div style={{ fontSize: 11, color: "#9ca3af", fontFamily: "monospace" }}>
+        <div className="text-muted-foreground font-mono" style={{ fontSize: 11 }}>
           {renderBreadcrumb()}
         </div>
       </div>
@@ -291,10 +276,10 @@ export function SkillsPanel({ agentId }: PanelProps) {
       <div className="flex-1 overflow-auto p-3">
         {loading ? (
           <div className="flex items-center justify-center" style={{ padding: "40px 0" }}>
-            <Loader2 className="h-5 w-5 animate-spin" style={{ color: "#0ea5e9" }} />
+            <Loader2 className="h-5 w-5 animate-spin text-primary" />
           </div>
         ) : items.length === 0 ? (
-          <div style={{ textAlign: "center", padding: "40px 0", color: "#9ca3af", fontSize: 13 }}>
+          <div className="text-center text-muted-foreground text-sm" style={{ padding: "40px 0" }}>
             空目录
           </div>
         ) : (
@@ -307,21 +292,7 @@ export function SkillsPanel({ agentId }: PanelProps) {
                 <button
                   key={item.name}
                   onClick={() => handleItemClick(item)}
-                  className="flex items-center gap-2.5 px-3 py-2.5 rounded-lg transition-all text-left w-full"
-                  style={{
-                    background: "#ffffff",
-                    border: "1px solid #e5e7eb",
-                    cursor: "pointer",
-                    pointerEvents: "auto",
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.borderColor = "#0ea5e9";
-                    e.currentTarget.style.background = "#f0f9ff";
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.borderColor = "#e5e7eb";
-                    e.currentTarget.style.background = "#ffffff";
-                  }}
+                  className="flex items-center gap-2.5 px-3 py-2.5 rounded-lg transition-all text-left w-full bg-card border border-border cursor-pointer hover:border-primary hover:bg-primary/5"
                 >
                   <div
                     className="flex items-center justify-center rounded shrink-0"
@@ -334,10 +305,10 @@ export function SkillsPanel({ agentId }: PanelProps) {
                     )}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <div className="text-xs font-medium truncate" style={{ color: "#111827" }}>
+                    <div className="text-xs font-medium truncate text-foreground">
                       {item.name}
                     </div>
-                    <div className="text-xs" style={{ color: "#9ca3af" }}>
+                    <div className="text-xs text-muted-foreground">
                       {formatFileSize(item.size ?? 0)}
                     </div>
                   </div>

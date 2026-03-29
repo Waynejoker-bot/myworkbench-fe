@@ -8,7 +8,7 @@ function makeToolBlock(overrides: Partial<ToolCallBlock> = {}): ToolCallBlock {
   return {
     type: ContentType.TOOL_CALL,
     id: `tool-${Math.random()}`,
-    toolName: 'Bash',
+    toolName: 'bash',
     parameters: { command: 'ls -la', description: '列出文件' },
     status: 'success',
     result: 'file1.txt\nfile2.txt',
@@ -16,87 +16,82 @@ function makeToolBlock(overrides: Partial<ToolCallBlock> = {}): ToolCallBlock {
   };
 }
 
+/** Helper: expand the tool call section by clicking the toggle button */
+function expandToolCalls() {
+  const btn = screen.getByText(/展开工具调用/);
+  fireEvent.click(btn);
+}
+
 describe('ToolCallTimeline', () => {
-  it('renders correct number of list items', () => {
+  it('is collapsed by default with toggle button', () => {
+    render(<ToolCallTimeline blocks={[makeToolBlock()]} />);
+    expect(screen.getByText(/展开工具调用/)).toBeTruthy();
+    // Tool items should NOT be visible
+    expect(screen.queryAllByRole('listitem')).toHaveLength(0);
+  });
+
+  it('shows tool count in toggle button', () => {
     const blocks = [makeToolBlock(), makeToolBlock(), makeToolBlock()];
     render(<ToolCallTimeline blocks={blocks} />);
+    expect(screen.getByText('展开工具调用 (3)')).toBeTruthy();
+  });
+
+  it('renders correct number of list items after expanding', () => {
+    const blocks = [makeToolBlock(), makeToolBlock(), makeToolBlock()];
+    render(<ToolCallTimeline blocks={blocks} />);
+    expandToolCalls();
     expect(screen.getAllByRole('listitem')).toHaveLength(3);
   });
 
-  it('shows green dot for success status', () => {
-    const { container } = render(
-      <ToolCallTimeline blocks={[makeToolBlock({ status: 'success' })]} />,
-    );
-    const dot = container.querySelector('[data-status="success"]');
-    expect(dot).toBeTruthy();
-    // jsdom converts hex to rgb in computed styles
-    expect(dot?.getAttribute('style')).toContain('rgb(34, 197, 94)');
+  it('toggle button changes to "收起工具调用" when expanded', () => {
+    render(<ToolCallTimeline blocks={[makeToolBlock()]} />);
+    expandToolCalls();
+    expect(screen.getByText('收起工具调用')).toBeTruthy();
   });
 
-  it('shows yellow dot for running status', () => {
-    const { container } = render(
-      <ToolCallTimeline
-        blocks={[makeToolBlock({ status: 'running', result: undefined })]}
-      />,
-    );
-    const dot = container.querySelector('[data-status="running"]');
-    expect(dot).toBeTruthy();
-    expect(dot?.getAttribute('style')).toContain('rgb(245, 158, 11)');
+  it('collapses back when clicking "收起工具调用"', () => {
+    render(<ToolCallTimeline blocks={[makeToolBlock()]} />);
+    expandToolCalls();
+    expect(screen.getAllByRole('listitem')).toHaveLength(1);
+    fireEvent.click(screen.getByText('收起工具调用'));
+    expect(screen.queryAllByRole('listitem')).toHaveLength(0);
   });
 
-  it('shows red dot for error status', () => {
-    const { container } = render(
-      <ToolCallTimeline
-        blocks={[
-          makeToolBlock({ status: 'error', result: 'Error: not found' }),
-        ]}
-      />,
-    );
-    const dot = container.querySelector('[data-status="error"]');
-    expect(dot).toBeTruthy();
-    expect(dot?.getAttribute('style')).toContain('rgb(239, 68, 68)');
-  });
-
-  it('displays tool description text', () => {
+  it('shows natural language description after expanding', () => {
     render(
       <ToolCallTimeline
         blocks={[makeToolBlock({ parameters: { description: '检查文件' } })]}
       />,
     );
+    expandToolCalls();
     expect(screen.getByText('检查文件')).toBeTruthy();
   });
 
-  it('displays tool name as label', () => {
-    render(<ToolCallTimeline blocks={[makeToolBlock({ toolName: 'Read' })]} />);
-    expect(screen.getByText('Read')).toBeTruthy();
-  });
-
-  it('expands result on click', () => {
+  it('shows Chinese description for bash ls command after expanding', () => {
     render(
       <ToolCallTimeline
-        blocks={[makeToolBlock({ result: 'detailed output here' })]}
+        blocks={[makeToolBlock({ parameters: { command: 'ls -la' }, status: 'success' })]}
       />,
     );
+    expandToolCalls();
+    expect(screen.getByText('查看了文件目录')).toBeTruthy();
+  });
+
+  it('expands individual tool result on click after expanding timeline', () => {
+    render(
+      <ToolCallTimeline
+        blocks={[makeToolBlock({ result: 'detailed output here', parameters: { description: '列出文件' } })]}
+      />,
+    );
+    expandToolCalls();
     // Result should not be visible initially
     expect(screen.queryByText('detailed output here')).toBeFalsy();
-    // Click the description to expand
+    // Click the description to expand individual result
     fireEvent.click(screen.getByText('列出文件'));
     expect(screen.getByText('detailed output here')).toBeTruthy();
   });
 
-  it('collapses result on second click', () => {
-    render(
-      <ToolCallTimeline
-        blocks={[makeToolBlock({ result: 'detailed output here' })]}
-      />,
-    );
-    fireEvent.click(screen.getByText('列出文件'));
-    expect(screen.getByText('detailed output here')).toBeTruthy();
-    fireEvent.click(screen.getByText('列出文件'));
-    expect(screen.queryByText('detailed output here')).toBeFalsy();
-  });
-
-  it('running steps without result cannot expand', () => {
+  it('running steps without result cannot expand individual detail', () => {
     render(
       <ToolCallTimeline
         blocks={[
@@ -108,18 +103,18 @@ describe('ToolCallTimeline', () => {
         ]}
       />,
     );
-    fireEvent.click(screen.getByText('Running task'));
-    // No expand indicator should be shown since result is undefined
-    expect(screen.queryByText('▶')).toBeFalsy();
-    expect(screen.queryByText('▼')).toBeFalsy();
+    expandToolCalls();
+    fireEvent.click(screen.getByText(/Running task/));
+    // No detail expand indicators
+    expect(screen.queryByText('▸')).toBeFalsy();
+    expect(screen.queryByText('▾')).toBeFalsy();
   });
 
-  it('renders multiple blocks with connecting lines between non-last items', () => {
-    const blocks = [makeToolBlock(), makeToolBlock()];
-    const { container } = render(<ToolCallTimeline blocks={blocks} />);
-    // Non-last items should have a connecting line (div with width: 1)
-    const lines = container.querySelectorAll('div[style*="width: 1"]');
-    // First item has a line, second (last) does not
-    expect(lines.length).toBeGreaterThanOrEqual(1);
+  it('has aria-expanded attribute on toggle button', () => {
+    render(<ToolCallTimeline blocks={[makeToolBlock()]} />);
+    const btn = screen.getByText(/展开工具调用/).closest('button');
+    expect(btn?.getAttribute('aria-expanded')).toBe('false');
+    fireEvent.click(btn!);
+    expect(btn?.getAttribute('aria-expanded')).toBe('true');
   });
 });

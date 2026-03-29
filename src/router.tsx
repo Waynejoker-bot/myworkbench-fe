@@ -2,6 +2,8 @@ import { createBrowserRouter, Navigate } from "react-router-dom";
 import LoginPage from "./pages/LoginPage";
 import RegisterPage from "./pages/RegisterPage";
 import ChatBoxPage from "./pages/ChatBoxPage";
+import TaskWorkspacePage from "./pages/TaskWorkspacePage";
+import TaskCardDemoPage from "./pages/TaskCardDemoPage";
 
 export const router = createBrowserRouter([
   {
@@ -15,6 +17,14 @@ export const router = createBrowserRouter([
   {
     path: "/chat",
     element: <ChatBoxPage />,
+  },
+  {
+    path: "/agent-task-cards",
+    element: <TaskWorkspacePage />,
+  },
+  {
+    path: "/task-card-demo",
+    element: <TaskCardDemoPage />,
   },
   {
     path: "/",

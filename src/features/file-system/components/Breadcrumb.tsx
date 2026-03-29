@@ -57,27 +57,20 @@ export function Breadcrumb({ path, rootPath = '', onNavigate }: BreadcrumbProps)
         {segments.map((segment, index) => (
           <div key={index} className="flex items-center">
             {index > 0 && (
-              <ChevronRight className="h-3.5 w-3.5 mx-1" style={{ color: '#9ca3af' }} />
+              <ChevronRight className="h-3.5 w-3.5 mx-1 text-muted-foreground" />
             )}
             {segment.navigable ? (
               <button
                 onClick={() => onNavigate(segment.path)}
-                className="transition-colors px-1.5 py-0.5 rounded"
-                style={{
-                  color: index === segments.length - 1 ? '#111827' : '#6b7280',
-                  fontWeight: index === segments.length - 1 ? 500 : 400,
-                }}
-                onMouseEnter={e => {
-                  if (index !== segments.length - 1) e.currentTarget.style.backgroundColor = '#f3f4f6';
-                }}
-                onMouseLeave={e => { e.currentTarget.style.backgroundColor = 'transparent'; }}
+                className={`transition-colors px-1.5 py-0.5 rounded hover:bg-muted ${
+                  index === segments.length - 1 ? 'text-foreground font-medium' : 'text-muted-foreground'
+                }`}
               >
                 {segment.label}
               </button>
             ) : (
               <span
-                className="px-1.5 py-0.5"
-                style={{ color: '#9ca3af', cursor: 'default' }}
+                className="px-1.5 py-0.5 text-muted-foreground cursor-default"
                 title="无法导航到项目根目录之外"
               >
                 {segment.label}
@@ -88,14 +81,11 @@ export function Breadcrumb({ path, rootPath = '', onNavigate }: BreadcrumbProps)
       </div>
       <button
         onClick={copyFullPath}
-        className="p-1 rounded transition-colors"
-        style={{ color: '#9ca3af' }}
-        onMouseEnter={e => { e.currentTarget.style.backgroundColor = '#f3f4f6'; }}
-        onMouseLeave={e => { e.currentTarget.style.backgroundColor = 'transparent'; }}
+        className="p-1 rounded transition-colors text-muted-foreground hover:bg-muted"
         title="复制路径"
       >
         {copied ? (
-          <Check className="h-3.5 w-3.5" style={{ color: '#22c55e' }} />
+          <Check className="h-3.5 w-3.5 text-success" />
         ) : (
           <Copy className="h-3.5 w-3.5" />
         )}

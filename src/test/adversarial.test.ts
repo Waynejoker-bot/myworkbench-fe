@@ -41,7 +41,7 @@ describe('Adversarial: Malformed tool data from backend', () => {
 
   it('getToolDescription handles empty name', () => {
     const result = getToolDescription({ name: '', arguments: {} });
-    expect(result).toBe(''); // Or some fallback
+    expect(result).toBe('处理完成'); // Graceful fallback for empty name
   });
 
   it('getToolDescription handles description as number', () => {
@@ -241,7 +241,7 @@ describe('Adversarial: ToolCallTimeline edge cases', () => {
   it('getToolDescription with 500-char file path', () => {
     const longPath = '/opt/' + 'a'.repeat(500) + '/file.ts';
     const result = getToolDescription({ name: 'Read', arguments: { file_path: longPath } });
-    expect(result).toBe(longPath); // Should not truncate file paths
+    expect(result).toBe('读取了 file.ts'); // Now shows basename in natural language
   });
 
   it('getToolDescription with Bash command containing newlines', () => {

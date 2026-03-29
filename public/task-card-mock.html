@@ -1,0 +1,1316 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ARM Task Card Mock — Design Review</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  /* === DESIGN.md Color Variables === */
+  :root {
+    --primary: #0EA5E9;
+    --primary-hover: #0284C7;
+    --primary-light: rgba(14,165,233,0.12);
+    --success: #10B981;
+    --error: #F43F5E;
+    --warning: #F59E0B;
+    --info: #38BDF8;
+    --bg: #F8FAFC;
+    --surface: #FFFFFF;
+    --surface-2: #F1F5F9;
+    --border: #E2E8F0;
+    --text-1: #0F172A;
+    --text-2: #475569;
+    --text-3: #94A3B8;
+    --approval-purple: #8B5CF6;
+  }
+
+  .dark {
+    --primary: #38BDF8;
+    --primary-hover: #0EA5E9;
+    --primary-light: rgba(56,189,248,0.15);
+    --success: #34D399;
+    --error: #FB7185;
+    --warning: #FBBF24;
+    --info: #7DD3FC;
+    --bg: #0F172A;
+    --surface: #1E293B;
+    --surface-2: #334155;
+    --border: #334155;
+    --text-1: #F1F5F9;
+    --text-2: #94A3B8;
+    --text-3: #64748B;
+    --approval-purple: #A78BFA;
+  }
+
+  /* === Base === */
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: ui-sans-serif, system-ui, -apple-system, sans-serif;
+    background: var(--bg);
+    color: var(--text-1);
+    line-height: 1.6;
+    padding: 32px;
+    transition: background-color 200ms ease-out, color 200ms ease-out;
+  }
+
+  /* === Page Layout === */
+  .page-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 32px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .page-title {
+    font-family: 'DM Sans', sans-serif;
+    font-size: 24px;
+    font-weight: 700;
+    letter-spacing: -0.3px;
+  }
+
+  .page-subtitle {
+    font-size: 13px;
+    color: var(--text-3);
+    margin-top: 4px;
+  }
+
+  .controls {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+
+  .toggle-btn {
+    padding: 8px 16px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text-1);
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 150ms ease-out;
+  }
+  .toggle-btn:hover { background: var(--surface-2); }
+  .toggle-btn.active { background: var(--primary-light); color: var(--primary); border-color: var(--primary); }
+
+  /* === Section Headers === */
+  .section-header {
+    font-family: 'DM Sans', sans-serif;
+    font-size: 18px;
+    font-weight: 600;
+    letter-spacing: -0.3px;
+    margin: 48px 0 16px;
+    color: var(--text-1);
+  }
+
+  .section-desc {
+    font-size: 13px;
+    color: var(--text-3);
+    margin-bottom: 24px;
+  }
+
+  /* === Chat Context (simulated) === */
+  .chat-context {
+    max-width: 720px;
+    margin: 0 auto;
+  }
+
+  .agent-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+
+  .agent-avatar {
+    width: 28px;
+    height: 28px;
+    border-radius: 9999px;
+    background: var(--primary-light);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--primary);
+  }
+
+  .agent-name {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-2);
+  }
+
+  .agent-time {
+    font-size: 12px;
+    color: var(--text-3);
+  }
+
+  /* === Task Card === */
+  .task-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+    position: relative;
+    max-width: 100%;
+    transition: opacity 300ms ease-in-out;
+    animation: cardSlideIn 200ms ease-out;
+  }
+
+  @keyframes cardSlideIn {
+    from { transform: translateY(8px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+  }
+
+  .task-card.completed {
+    opacity: 0.6;
+  }
+
+  .task-card-inner {
+    display: flex;
+  }
+
+  /* Left semantic bar */
+  .card-bar {
+    width: 3px;
+    flex-shrink: 0;
+  }
+  .card-bar.action { background: var(--primary); }
+  .card-bar.insight { background: var(--info); }
+  .card-bar.escalation { background: var(--warning); }
+  .card-bar.approval { background: var(--approval-purple); }
+  .card-bar.sync { background: var(--success); }
+
+  .card-content {
+    flex: 1;
+    padding: 12px 12px 16px;
+  }
+
+  /* Layer 1: Meta row */
+  .card-meta-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+    flex-wrap: wrap;
+  }
+
+  .status-badge {
+    font-size: 12px;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 4px;
+    line-height: 1.5;
+  }
+  .status-badge.suggested { background: rgba(245,158,11,0.12); color: #B45309; }
+  .dark .status-badge.suggested { background: rgba(251,191,36,0.15); color: #FBBF24; }
+  .status-badge.confirmed { background: rgba(16,185,129,0.12); color: #047857; }
+  .dark .status-badge.confirmed { background: rgba(52,211,153,0.15); color: #34D399; }
+  .status-badge.dispatched { background: rgba(14,165,233,0.12); color: #0369A1; }
+  .dark .status-badge.dispatched { background: rgba(56,189,248,0.15); color: #38BDF8; }
+  .status-badge.in-progress { background: rgba(14,165,233,0.12); color: #0369A1; }
+  .dark .status-badge.in-progress { background: rgba(56,189,248,0.15); color: #38BDF8; }
+  .status-badge.feedback { background: rgba(56,189,248,0.12); color: #0369A1; }
+  .dark .status-badge.feedback { background: rgba(125,211,252,0.15); color: #7DD3FC; }
+  .status-badge.completed { background: rgba(16,185,129,0.12); color: #047857; }
+  .dark .status-badge.completed { background: rgba(52,211,153,0.15); color: #34D399; }
+
+  .type-tag {
+    font-size: 12px;
+    padding: 2px 8px;
+    border-radius: 4px;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .type-tag.action { background: rgba(14,165,233,0.08); color: var(--primary); }
+  .type-tag.insight { background: rgba(56,189,248,0.08); color: var(--info); }
+  .type-tag.escalation { background: rgba(245,158,11,0.08); color: var(--warning); }
+  .type-tag.sync { background: rgba(16,185,129,0.08); color: var(--success); }
+
+  .priority-tag {
+    font-size: 12px;
+    padding: 2px 8px;
+    border-radius: 4px;
+    margin-left: auto;
+  }
+  .priority-tag.high { background: rgba(244,63,94,0.08); color: var(--error); }
+  .priority-tag.medium { background: rgba(245,158,11,0.08); color: var(--warning); }
+  .priority-tag.low { color: var(--text-3); }
+
+  /* Layer 2: Title */
+  .card-title {
+    font-family: 'DM Sans', sans-serif;
+    font-size: 16px;
+    font-weight: 600;
+    letter-spacing: -0.3px;
+    color: var(--text-1);
+    margin-bottom: 4px;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .completed .card-title {
+    color: var(--text-3);
+  }
+
+  /* Layer 3: Summary */
+  .card-summary {
+    font-size: 14px;
+    color: var(--text-1);
+    line-height: 1.6;
+    margin-bottom: 8px;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  /* Layer 4: Key reasons */
+  .card-reasons {
+    margin-bottom: 8px;
+  }
+
+  .reason-item {
+    font-size: 13px;
+    color: var(--text-2);
+    padding: 4px 0 4px 12px;
+    border-left: 2px solid var(--border);
+    line-height: 1.5;
+  }
+
+  /* Layer 5: Metadata */
+  .card-metadata {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 12px;
+    color: var(--text-3);
+    margin-bottom: 8px;
+    flex-wrap: wrap;
+  }
+
+  .metadata-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .confidence-value { font-weight: 600; }
+  .confidence-value.high { color: var(--success); }
+  .confidence-value.medium { color: var(--warning); }
+  .confidence-value.low { color: var(--error); }
+
+  .missing-data {
+    font-size: 12px;
+    color: var(--warning);
+    background: rgba(245,158,11,0.08);
+    padding: 4px 8px;
+    border-radius: 4px;
+    margin-bottom: 8px;
+  }
+
+  .low-confidence-banner {
+    font-size: 12px;
+    color: var(--warning);
+    background: rgba(245,158,11,0.08);
+    padding: 8px 12px;
+    border-radius: 4px;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .stale-data {
+    color: var(--error);
+    font-weight: 500;
+  }
+
+  /* Layer 6: Suggested action */
+  .card-action-draft {
+    background: var(--surface-2);
+    padding: 8px 12px;
+    border-radius: 8px;
+    font-size: 14px;
+    color: var(--text-1);
+    margin-bottom: 12px;
+    line-height: 1.5;
+    cursor: text;
+    transition: all 150ms ease-out;
+  }
+
+  .card-action-draft:hover {
+    background: var(--surface);
+    outline: 1px solid var(--border);
+  }
+
+  .card-action-draft.editing {
+    background: var(--surface);
+    outline: 2px solid var(--primary);
+  }
+
+  .due-date {
+    font-size: 12px;
+    color: var(--text-3);
+    margin-top: 4px;
+  }
+
+  /* Layer 7: Buttons */
+  .card-actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+
+  .btn {
+    padding: 6px 16px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 150ms ease-out;
+    border: none;
+    line-height: 1.5;
+    min-height: 32px;
+  }
+
+  .btn-primary {
+    background: var(--primary);
+    color: #fff;
+  }
+  .btn-primary:hover { background: var(--primary-hover); }
+
+  .btn-ghost {
+    background: transparent;
+    color: var(--text-2);
+    border: 1px solid var(--border);
+  }
+  .dark .btn-ghost { background: rgba(255,255,255,0.06); }
+  .btn-ghost:hover { background: var(--surface-2); }
+
+  .btn-danger {
+    background: transparent;
+    color: var(--error);
+    border: 1px solid transparent;
+  }
+  .btn-danger:hover { background: rgba(244,63,94,0.08); }
+
+  .btn-success {
+    background: var(--success);
+    color: #fff;
+  }
+  .btn-success:hover { opacity: 0.9; }
+
+  .btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  /* Dispatched info */
+  .dispatch-info {
+    font-size: 13px;
+    color: var(--text-2);
+    padding: 8px 0;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .dispatch-info .avatar-sm {
+    width: 20px;
+    height: 20px;
+    border-radius: 9999px;
+    background: var(--primary-light);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--primary);
+  }
+
+  /* Feedback section */
+  .feedback-section {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px;
+    margin-bottom: 12px;
+  }
+
+  .feedback-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-1);
+    margin-bottom: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .feedback-content {
+    font-size: 14px;
+    color: var(--text-1);
+    line-height: 1.5;
+  }
+
+  .feedback-result {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 13px;
+    padding: 2px 8px;
+    border-radius: 4px;
+    margin-bottom: 8px;
+  }
+  .feedback-result.done { background: rgba(16,185,129,0.12); color: #047857; }
+  .dark .feedback-result.done { background: rgba(52,211,153,0.15); color: #34D399; }
+
+  /* Error banner */
+  .error-banner {
+    background: rgba(244,63,94,0.08);
+    color: var(--error);
+    padding: 8px 12px;
+    border-radius: 4px;
+    font-size: 13px;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  /* Skeleton loading */
+  .skeleton {
+    border-radius: 4px;
+    background: linear-gradient(90deg, var(--surface-2) 25%, var(--border) 50%, var(--surface-2) 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s linear infinite;
+  }
+
+  @keyframes shimmer {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+  }
+
+  .skeleton-title { height: 20px; width: 70%; margin-bottom: 8px; }
+  .skeleton-text { height: 14px; width: 100%; margin-bottom: 6px; }
+  .skeleton-text-short { height: 14px; width: 50%; margin-bottom: 8px; }
+  .skeleton-btn { height: 32px; width: 100px; border-radius: 8px; }
+
+  /* === Workspace View === */
+  .workspace-section {
+    max-width: 720px;
+    margin: 0 auto;
+  }
+
+  .workspace-filters {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 24px;
+    flex-wrap: wrap;
+  }
+
+  .filter-tab {
+    padding: 6px 16px;
+    border-radius: 8px;
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 150ms ease-out;
+    background: transparent;
+    color: var(--text-2);
+    border: 1px solid var(--border);
+  }
+  .filter-tab.active {
+    background: var(--primary-light);
+    color: var(--primary);
+    border-color: var(--primary);
+  }
+  .filter-tab:hover:not(.active) { background: var(--surface-2); }
+
+  .group-header {
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-2);
+    margin: 24px 0 8px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .group-count {
+    font-size: 12px;
+    font-weight: 400;
+    color: var(--text-3);
+  }
+
+  /* Compact list item */
+  .list-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px;
+    border-bottom: 1px solid var(--border);
+    cursor: pointer;
+    transition: background 150ms ease-out;
+  }
+  .list-item:hover { background: var(--surface-2); }
+
+  .list-bar {
+    width: 3px;
+    height: 40px;
+    border-radius: 2px;
+    flex-shrink: 0;
+  }
+
+  .list-content {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .list-title {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text-1);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .list-subtitle {
+    font-size: 13px;
+    color: var(--text-3);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .list-meta {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-shrink: 0;
+  }
+
+  /* === Sales view === */
+  .sales-card .card-source {
+    font-size: 13px;
+    color: var(--text-2);
+    margin-bottom: 8px;
+    padding: 4px 0;
+  }
+
+  .sales-card .card-source strong {
+    color: var(--primary);
+  }
+
+  .collapse-trigger {
+    font-size: 13px;
+    color: var(--primary);
+    cursor: pointer;
+    padding: 4px 0;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .collapse-trigger:hover { text-decoration: underline; }
+
+  /* === Empty State === */
+  .empty-state {
+    text-align: center;
+    padding: 64px 24px;
+    color: var(--text-3);
+  }
+
+  .empty-icon {
+    font-size: 48px;
+    margin-bottom: 16px;
+    opacity: 0.4;
+  }
+
+  .empty-title {
+    font-family: 'DM Sans', sans-serif;
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text-2);
+    margin-bottom: 8px;
+  }
+
+  .empty-desc {
+    font-size: 14px;
+    color: var(--text-3);
+    margin-bottom: 16px;
+  }
+
+  /* Card gap */
+  .card-gap { height: 16px; }
+
+  /* Responsive */
+  @media (max-width: 640px) {
+    body { padding: 16px; }
+    .card-actions { flex-direction: column; }
+    .card-actions .btn { width: 100%; text-align: center; }
+    .card-meta-row { gap: 4px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="page-header">
+  <div>
+    <div class="page-title">ARM Task Card Mock</div>
+    <div class="page-subtitle">Design Review — 校准 DESIGN.md 规范</div>
+  </div>
+  <div class="controls">
+    <button class="toggle-btn active" onclick="setView('chat')">对话视图</button>
+    <button class="toggle-btn" onclick="setView('workspace')">工作台</button>
+    <button class="toggle-btn" onclick="setView('sales')">销售视角</button>
+    <button class="toggle-btn" onclick="toggleDark()">深色模式</button>
+  </div>
+</div>
+
+<!-- ==================== CHAT VIEW ==================== -->
+<div id="view-chat" class="chat-context">
+
+  <h2 class="section-header">状态 1: suggested（待确认）</h2>
+  <p class="section-desc">Agent 刚生成的卡片，主管可以确认、编辑或驳回</p>
+
+  <div class="agent-header">
+    <div class="agent-avatar">主</div>
+    <span class="agent-name">主管 BPAgent</span>
+    <span class="agent-time">刚刚</span>
+  </div>
+
+  <div class="task-card">
+    <div class="task-card-inner">
+      <div class="card-bar action"></div>
+      <div class="card-content">
+        <div class="card-meta-row">
+          <span class="status-badge suggested">待确认</span>
+          <span class="type-tag action">▶ 行动建议</span>
+          <span class="priority-tag high">高优先级</span>
+        </div>
+        <div class="card-title">跟进华为云项目 — 预算确认</div>
+        <div class="card-summary">根据昨天的拜访录音分析，客户技术负责人已认可方案，但预算审批还在走流程。建议本周内联系采购部张经理确认预算时间线。</div>
+        <div class="card-reasons">
+          <div class="reason-item">技术负责人在会议中明确说"方案没问题"</div>
+          <div class="reason-item">但追问预算时回答含糊："还在走流程"</div>
+          <div class="reason-item">该客户上次类似采购审批周期为 3 周</div>
+        </div>
+        <div class="card-metadata">
+          <span class="metadata-item">置信度 <span class="confidence-value high">82%</span></span>
+          <span class="metadata-item">·</span>
+          <span class="metadata-item">数据覆盖 75%</span>
+          <span class="metadata-item">·</span>
+          <span class="metadata-item">更新于 昨天 16:30</span>
+        </div>
+        <div class="missing-data">⚠ 缺失: 采购部联系方式, 内部审批流程时间</div>
+        <div class="card-action-draft">
+          本周联系采购部张经理确认预算时间线
+          <div class="due-date">截止日期: 2026-04-04</div>
+        </div>
+        <div class="card-actions">
+          <button class="btn btn-primary">确认并派发</button>
+          <button class="btn btn-ghost">编辑</button>
+          <button class="btn btn-ghost">查看证据</button>
+          <button class="btn btn-danger">驳回</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card-gap"></div>
+
+  <h2 class="section-header">状态 2: confirmed（已确认）</h2>
+  <p class="section-desc">主管已确认建议，准备派发给销售</p>
+
+  <div class="agent-header">
+    <div class="agent-avatar">主</div>
+    <span class="agent-name">主管 BPAgent</span>
+    <span class="agent-time">5 分钟前</span>
+  </div>
+
+  <div class="task-card">
+    <div class="task-card-inner">
+      <div class="card-bar action"></div>
+      <div class="card-content">
+        <div class="card-meta-row">
+          <span class="status-badge confirmed">已确认</span>
+          <span class="type-tag action">▶ 行动建议</span>
+          <span class="priority-tag medium">中优先级</span>
+        </div>
+        <div class="card-title">更新阿里云报价方案</div>
+        <div class="card-summary">阿里云客户要求在本月底前提供新的报价方案，包含弹性计算和存储优惠。需要和产品组确认最新折扣政策。</div>
+        <div class="card-metadata">
+          <span class="metadata-item">置信度 <span class="confidence-value high">91%</span></span>
+          <span class="metadata-item">·</span>
+          <span class="metadata-item">数据覆盖 88%</span>
+          <span class="metadata-item">·</span>
+          <span class="metadata-item">更新于 今天 09:15</span>
+        </div>
+        <div class="card-actions">
+          <button class="btn btn-primary">派发给...</button>
+          <button class="btn btn-ghost">查看证据</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card-gap"></div>
+
+  <h2 class="section-header">状态 3: dispatched（已派发）</h2>
+  <p class="section-desc">已派发给销售，等待接收</p>
+
+  <div class="agent-header">
+    <div class="agent-avatar">主</div>
+    <span class="agent-name">主管 BPAgent</span>
+    <span class="agent-time">1 小时前</span>
+  </div>
+
+  <div class="task-card">
+    <div class="task-card-inner">
+      <div class="card-bar action"></div>
+      <div class="card-content">
+        <div class="card-meta-row">
+          <span class="status-badge dispatched">已派发</span>
+          <span class="type-tag action">▶ 行动建议</span>
+          <span class="priority-tag high">高优先级</span>
+        </div>
+        <div class="card-title">联系腾讯云采购部确认合同细节</div>
+        <div class="card-summary">腾讯云项目已进入商务阶段，需要尽快确认合同条款和交付时间。</div>
+        <div class="dispatch-info">
+          <span class="avatar-sm">李</span>
+          已派发给 李明 · 今天 10:30
+        </div>
+        <div class="card-actions">
+          <button class="btn btn-ghost">查看详情</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card-gap"></div>
+
+  <h2 class="section-header">状态 4: feedback_submitted（待审阅反馈）</h2>
+  <p class="section-desc">销售已提交执行反馈，主管需要确认</p>
+
+  <div class="agent-header">
+    <div class="agent-avatar">主</div>
+    <span class="agent-name">主管 BPAgent</span>
+    <span class="agent-time">2 小时前</span>
+  </div>
+
+  <div class="task-card">
+    <div class="task-card-inner">
+      <div class="card-bar action"></div>
+      <div class="card-content">
+        <div class="card-meta-row">
+          <span class="status-badge feedback">待审阅</span>
+          <span class="type-tag action">▶ 行动建议</span>
+          <span class="priority-tag medium">中优先级</span>
+        </div>
+        <div class="card-title">跟进字节跳动技术评估</div>
+        <div class="card-summary">字节跳动技术团队需要在周五前完成 POC 评估。</div>
+        <div class="feedback-section">
+          <div class="feedback-label">销售反馈 — 李明</div>
+          <span class="feedback-result done">✓ 已完成</span>
+          <div class="feedback-content">已经和字节技术负责人确认了 POC 评估时间，约在周四下午 2 点进行线上演示。对方要求准备高并发场景的测试数据。</div>
+        </div>
+        <div class="card-actions">
+          <button class="btn btn-success">确认反馈</button>
+          <button class="btn btn-ghost">查看详情</button>
+          <button class="btn btn-danger">要求重做</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card-gap"></div>
+
+  <h2 class="section-header">状态 5: completed（已完成）</h2>
+  <p class="section-desc">闭环完成，视觉权重降低</p>
+
+  <div class="agent-header">
+    <div class="agent-avatar">主</div>
+    <span class="agent-name">主管 BPAgent</span>
+    <span class="agent-time">昨天</span>
+  </div>
+
+  <div class="task-card completed">
+    <div class="task-card-inner">
+      <div class="card-bar action"></div>
+      <div class="card-content">
+        <div class="card-meta-row">
+          <span class="status-badge completed">已完成</span>
+          <span class="type-tag action">▶ 行动建议</span>
+          <span class="priority-tag low">低</span>
+        </div>
+        <div class="card-title">确认美团云上线时间表</div>
+        <div class="card-summary">美团云项目已确认 4 月 15 日上线，所有合同条款已签署。</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card-gap"></div>
+
+  <h2 class="section-header">异常态: 低置信度</h2>
+  <p class="section-desc">置信度 < 50%，顶部显示警告条</p>
+
+  <div class="agent-header">
+    <div class="agent-avatar">主</div>
+    <span class="agent-name">主管 BPAgent</span>
+    <span class="agent-time">刚刚</span>
+  </div>
+
+  <div class="task-card">
+    <div class="task-card-inner">
+      <div class="card-bar escalation"></div>
+      <div class="card-content">
+        <div class="low-confidence-banner">⚠ 低置信度 — 数据不充分，建议人工核实后再确认</div>
+        <div class="card-meta-row">
+          <span class="status-badge suggested">待确认</span>
+          <span class="type-tag escalation">▲ 风险升级</span>
+          <span class="priority-tag high">高优先级</span>
+        </div>
+        <div class="card-title">京东云项目可能面临竞标失败风险</div>
+        <div class="card-summary">根据有限的市场信息推测，竞争对手可能已提交了更低报价。但目前缺少直接证据。</div>
+        <div class="card-reasons">
+          <div class="reason-item">客户最近一次沟通态度明显冷淡</div>
+          <div class="reason-item">竞品最近在该区域有大规模推广</div>
+        </div>
+        <div class="card-metadata">
+          <span class="metadata-item">置信度 <span class="confidence-value low">38%</span></span>
+          <span class="metadata-item">·</span>
+          <span class="metadata-item">数据覆盖 <span class="confidence-value low">40%</span></span>
+          <span class="metadata-item">·</span>
+          <span class="metadata-item stale-data">更新于 5 天前 ⚠ 数据可能过期</span>
+        </div>
+        <div class="card-actions">
+          <button class="btn btn-primary">确认并派发</button>
+          <button class="btn btn-ghost">查看证据</button>
+          <button class="btn btn-danger">驳回</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card-gap"></div>
+
+  <h2 class="section-header">异常态: 操作失败</h2>
+  <p class="section-desc">Apply 或 Sync 失败时的错误提示</p>
+
+  <div class="agent-header">
+    <div class="agent-avatar">主</div>
+    <span class="agent-name">主管 BPAgent</span>
+    <span class="agent-time">10 分钟前</span>
+  </div>
+
+  <div class="task-card">
+    <div class="task-card-inner">
+      <div class="card-bar sync"></div>
+      <div class="card-content">
+        <div class="error-banner">
+          同步失败 — CRM 连接超时
+          <button class="btn btn-ghost" style="padding: 2px 12px; font-size: 12px;">重试</button>
+        </div>
+        <div class="card-meta-row">
+          <span class="status-badge" style="background: rgba(244,63,94,0.12); color: #B91C1C;">同步失败</span>
+          <span class="type-tag sync">✓ 同步结果</span>
+          <span class="priority-tag medium">中优先级</span>
+        </div>
+        <div class="card-title">百度云客户信息同步到飞书</div>
+        <div class="card-summary">客户信息已在系统内更新，但同步到飞书多维表格时失败。已 apply 的内部状态不受影响。</div>
+        <div class="card-metadata">
+          <span class="metadata-item">内部状态: <span style="color: var(--success);">已应用</span></span>
+          <span class="metadata-item">·</span>
+          <span class="metadata-item">外部同步: <span style="color: var(--error);">失败</span></span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card-gap"></div>
+
+  <h2 class="section-header">Loading 态: 骨架屏</h2>
+  <p class="section-desc">Agent 正在生成卡片时的加载态</p>
+
+  <div class="agent-header">
+    <div class="agent-avatar">主</div>
+    <span class="agent-name">主管 BPAgent</span>
+    <span class="agent-time">正在生成...</span>
+  </div>
+
+  <div class="task-card">
+    <div class="task-card-inner">
+      <div class="card-bar action"></div>
+      <div class="card-content" style="padding: 16px 12px;">
+        <div class="skeleton skeleton-title"></div>
+        <div class="skeleton skeleton-text"></div>
+        <div class="skeleton skeleton-text"></div>
+        <div class="skeleton skeleton-text-short"></div>
+        <div style="height: 12px;"></div>
+        <div style="display: flex; gap: 8px;">
+          <div class="skeleton skeleton-btn"></div>
+          <div class="skeleton skeleton-btn"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ==================== WORKSPACE VIEW ==================== -->
+<div id="view-workspace" class="workspace-section" style="display: none;">
+
+  <div class="workspace-filters">
+    <button class="filter-tab active">全部 (9)</button>
+    <button class="filter-tab">待处理 (3)</button>
+    <button class="filter-tab">进行中 (4)</button>
+    <button class="filter-tab">已完成 (2)</button>
+  </div>
+
+  <div class="group-header">待处理 <span class="group-count">(3)</span></div>
+
+  <div class="list-item">
+    <div class="list-bar" style="background: var(--primary);"></div>
+    <div class="list-content">
+      <div class="list-title">跟进华为云项目 — 预算确认</div>
+      <div class="list-subtitle">根据昨天的拜访录音分析... · 82% · 昨天</div>
+    </div>
+    <div class="list-meta">
+      <span class="status-badge suggested">待确认</span>
+      <span class="priority-tag high">高</span>
+    </div>
+  </div>
+
+  <div class="list-item">
+    <div class="list-bar" style="background: var(--warning);"></div>
+    <div class="list-content">
+      <div class="list-title">京东云项目可能面临竞标失败风险</div>
+      <div class="list-subtitle">竞品可能已提交更低报价... · 38% · 5天前</div>
+    </div>
+    <div class="list-meta">
+      <span class="status-badge suggested">待确认</span>
+      <span class="priority-tag high">高</span>
+    </div>
+  </div>
+
+  <div class="list-item">
+    <div class="list-bar" style="background: var(--primary);"></div>
+    <div class="list-content">
+      <div class="list-title">更新阿里云报价方案</div>
+      <div class="list-subtitle">客户要求月底前提供新报价... · 91% · 今天</div>
+    </div>
+    <div class="list-meta">
+      <span class="status-badge confirmed">已确认</span>
+      <span class="priority-tag medium">中</span>
+    </div>
+  </div>
+
+  <div class="group-header">进行中 <span class="group-count">(4)</span></div>
+
+  <div class="list-item">
+    <div class="list-bar" style="background: var(--primary);"></div>
+    <div class="list-content">
+      <div class="list-title">联系腾讯云采购部确认合同细节</div>
+      <div class="list-subtitle">已派发给 李明 · 今天 10:30</div>
+    </div>
+    <div class="list-meta">
+      <span class="status-badge dispatched">已派发</span>
+      <span class="priority-tag high">高</span>
+    </div>
+  </div>
+
+  <div class="list-item">
+    <div class="list-bar" style="background: var(--primary);"></div>
+    <div class="list-content">
+      <div class="list-title">跟进字节跳动技术评估</div>
+      <div class="list-subtitle">李明已反馈: 已约周四下午演示</div>
+    </div>
+    <div class="list-meta">
+      <span class="status-badge feedback">待审阅</span>
+      <span class="priority-tag medium">中</span>
+    </div>
+  </div>
+
+  <div class="list-item">
+    <div class="list-bar" style="background: var(--primary);"></div>
+    <div class="list-content">
+      <div class="list-title">准备网易云 POC 环境</div>
+      <div class="list-subtitle">已派发给 张强 · 昨天 14:00</div>
+    </div>
+    <div class="list-meta">
+      <span class="status-badge in-progress">执行中</span>
+      <span class="priority-tag medium">中</span>
+    </div>
+  </div>
+
+  <div class="list-item">
+    <div class="list-bar" style="background: var(--success);"></div>
+    <div class="list-content">
+      <div class="list-title">百度云客户信息同步到飞书</div>
+      <div class="list-subtitle" style="color: var(--error);">⚠ 同步失败 — 点击重试</div>
+    </div>
+    <div class="list-meta">
+      <span class="status-badge" style="background: rgba(244,63,94,0.12); color: #B91C1C; font-size: 12px; padding: 2px 8px; border-radius: 4px;">同步失败</span>
+    </div>
+  </div>
+
+  <div class="group-header" style="cursor: pointer;">
+    已完成 <span class="group-count">(2) ▾</span>
+  </div>
+
+  <div style="opacity: 0.6;">
+    <div class="list-item">
+      <div class="list-bar" style="background: var(--primary);"></div>
+      <div class="list-content">
+        <div class="list-title" style="color: var(--text-3);">确认美团云上线时间表</div>
+        <div class="list-subtitle">4月15日上线已确认</div>
+      </div>
+      <div class="list-meta">
+        <span class="status-badge completed">已完成</span>
+      </div>
+    </div>
+    <div class="list-item">
+      <div class="list-bar" style="background: var(--primary);"></div>
+      <div class="list-content">
+        <div class="list-title" style="color: var(--text-3);">发送小米云合作方案初稿</div>
+        <div class="list-subtitle">已发送并收到回执</div>
+      </div>
+      <div class="list-meta">
+        <span class="status-badge completed">已完成</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Empty state -->
+  <div style="margin-top: 48px; padding-top: 24px; border-top: 1px solid var(--border);">
+    <h2 class="section-header">空状态示例</h2>
+    <div class="empty-state" style="background: var(--surface); border-radius: 8px; border: 1px solid var(--border);">
+      <div class="empty-icon">☐</div>
+      <div class="empty-title">暂无任务卡片</div>
+      <div class="empty-desc">Agent 生成的建议将在这里显示</div>
+      <button class="btn btn-primary">前往对话</button>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== SALES VIEW ==================== -->
+<div id="view-sales" class="chat-context" style="display: none;">
+
+  <h2 class="section-header">销售端: 拜访汇报卡片（闭环起点）</h2>
+  <p class="section-desc">会议/拜访完成后，销售 Agent 根据录音自动生成汇报草稿。销售确认后自动上报主管 Agent。</p>
+
+  <div class="agent-header">
+    <div class="agent-avatar" style="background: rgba(16,185,129,0.12); color: #047857;">销</div>
+    <span class="agent-name">销售 BPAgent</span>
+    <span class="agent-time">刚刚</span>
+  </div>
+
+  <div class="task-card sales-card">
+    <div class="task-card-inner">
+      <div class="card-bar" style="background: var(--success);"></div>
+      <div class="card-content">
+        <div class="card-meta-row">
+          <span class="status-badge suggested">待确认</span>
+          <span class="type-tag" style="background: rgba(16,185,129,0.08); color: var(--success);">✎ 拜访汇报</span>
+          <span style="font-size: 12px; color: var(--text-3); margin-left: auto;">基于 3月27日拜访录音</span>
+        </div>
+        <div class="card-title">华为云项目 — 拜访汇报</div>
+        <div class="card-summary" style="-webkit-line-clamp: unset;">
+          今天下午拜访了华为云技术负责人王总和采购经理张经理。主要讨论内容：
+        </div>
+
+        <div style="margin: 8px 0;">
+          <div style="font-size: 13px; font-weight: 500; color: var(--text-1); margin-bottom: 6px;">会议要点</div>
+          <div class="card-reasons">
+            <div class="reason-item">技术方案已通过内部评审，王总明确表示"方案没问题"</div>
+            <div class="reason-item">预算审批正在走流程，张经理说"大概还需要两三周"</div>
+            <div class="reason-item">竞品也在接触，但客户表示我们的技术方案更完整</div>
+          </div>
+        </div>
+
+        <div style="margin: 8px 0;">
+          <div style="font-size: 13px; font-weight: 500; color: var(--text-1); margin-bottom: 6px;">客户态度</div>
+          <div style="font-size: 14px; color: var(--text-1); line-height: 1.6;">整体积极，技术层面已认可。主要卡点在预算审批流程，非技术问题。</div>
+        </div>
+
+        <div style="margin: 8px 0;">
+          <div style="font-size: 13px; font-weight: 500; color: var(--text-1); margin-bottom: 6px;">下一步建议（Agent 生成）</div>
+          <div class="card-action-draft">
+            1. 本周跟进采购部预算审批进展<br>
+            2. 准备 POC 环境供技术团队试用<br>
+            3. 两周后安排正式商务谈判
+          </div>
+        </div>
+
+        <div class="card-metadata">
+          <span class="metadata-item">置信度 <span class="confidence-value high">88%</span></span>
+          <span class="metadata-item">·</span>
+          <span class="metadata-item">录音时长 47 分钟</span>
+          <span class="metadata-item">·</span>
+          <span class="metadata-item">今天 16:30</span>
+        </div>
+
+        <div style="font-size: 12px; color: var(--text-3); margin-bottom: 12px;">确认后将自动汇报给主管 Agent</div>
+
+        <div class="card-actions">
+          <button class="btn btn-primary">确认并汇报</button>
+          <button class="btn btn-ghost">编辑内容</button>
+          <button class="btn btn-ghost">重新生成</button>
+          <button class="btn btn-ghost">播放录音</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card-gap"></div>
+
+  <h2 class="section-header">销售端: 已汇报（等待主管处理）</h2>
+  <p class="section-desc">销售确认后，汇报已提交。主管 Agent 收到后会汇总分析。</p>
+
+  <div class="agent-header">
+    <div class="agent-avatar" style="background: rgba(16,185,129,0.12); color: #047857;">销</div>
+    <span class="agent-name">销售 BPAgent</span>
+    <span class="agent-time">30 分钟前</span>
+  </div>
+
+  <div class="task-card sales-card">
+    <div class="task-card-inner">
+      <div class="card-bar" style="background: var(--success);"></div>
+      <div class="card-content">
+        <div class="card-meta-row">
+          <span class="status-badge confirmed">已汇报</span>
+          <span class="type-tag" style="background: rgba(16,185,129,0.08); color: var(--success);">✎ 拜访汇报</span>
+        </div>
+        <div class="card-title">阿里云项目 — 拜访汇报</div>
+        <div class="card-summary">拜访了阿里云采购部，对方要求月底前提供新报价方案。已确认需要弹性计算和存储优惠。</div>
+        <div class="dispatch-info">
+          ✓ 已汇报给主管 Agent · 今天 14:15
+        </div>
+        <div class="card-actions">
+          <button class="btn btn-ghost">查看详情</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card-gap"></div>
+  <div style="border-top: 2px solid var(--border); margin: 32px 0;"></div>
+
+  <h2 class="section-header">销售端: 待接收任务（主管派发）</h2>
+  <p class="section-desc">销售确认汇报后，主管 Agent 汇总分析，主管确认后派发下来的任务</p>
+
+  <div class="agent-header">
+    <div class="agent-avatar" style="background: rgba(16,185,129,0.12); color: #047857;">销</div>
+    <span class="agent-name">销售 BPAgent</span>
+    <span class="agent-time">刚刚</span>
+  </div>
+
+  <div class="task-card sales-card">
+    <div class="task-card-inner">
+      <div class="card-bar action"></div>
+      <div class="card-content">
+        <div class="card-meta-row">
+          <span class="status-badge dispatched">待接收</span>
+          <span class="type-tag action">▶ 行动建议</span>
+          <span class="priority-tag high">高优先级</span>
+        </div>
+        <div class="card-title">跟进华为云项目 — 预算确认</div>
+        <div class="card-source">来自主管: <strong>建议本周内联系采购部张经理确认预算时间线</strong></div>
+        <div class="card-action-draft">
+          本周联系采购部张经理确认预算时间线
+          <div class="due-date">截止日期: 2026-04-04</div>
+        </div>
+        <span class="collapse-trigger">查看详细背景 ▾</span>
+        <div style="height: 12px;"></div>
+        <div class="card-actions">
+          <button class="btn btn-primary">确认接收</button>
+          <button class="btn btn-ghost">提交反馈</button>
+          <button class="btn btn-ghost">有问题?</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card-gap"></div>
+
+  <h2 class="section-header">销售端: 提交反馈中</h2>
+  <p class="section-desc">点击"提交反馈"后展开的表单</p>
+
+  <div class="agent-header">
+    <div class="agent-avatar" style="background: rgba(16,185,129,0.12); color: #047857;">销</div>
+    <span class="agent-name">销售 BPAgent</span>
+    <span class="agent-time">1 小时前</span>
+  </div>
+
+  <div class="task-card sales-card">
+    <div class="task-card-inner">
+      <div class="card-bar action"></div>
+      <div class="card-content">
+        <div class="card-meta-row">
+          <span class="status-badge in-progress">执行中</span>
+          <span class="type-tag action">▶ 行动建议</span>
+          <span class="priority-tag medium">中优先级</span>
+        </div>
+        <div class="card-title">联系腾讯云采购部确认合同细节</div>
+        <div class="card-source">来自主管: <strong>尽快确认合同条款和交付时间</strong></div>
+
+        <div class="feedback-section" style="margin-top: 8px;">
+          <div class="feedback-label">提交执行反馈</div>
+          <div style="margin-bottom: 8px;">
+            <div style="font-size: 13px; font-weight: 500; color: var(--text-1); margin-bottom: 6px;">执行结果</div>
+            <div style="display: flex; gap: 8px;">
+              <span style="padding: 4px 12px; border-radius: 4px; background: rgba(16,185,129,0.15); color: var(--success); font-size: 13px; font-weight: 500; cursor: pointer; border: 1px solid var(--success);">已完成</span>
+              <span style="padding: 4px 12px; border-radius: 4px; background: var(--bg); color: var(--text-1); font-size: 13px; cursor: pointer; border: 1px solid var(--border);">部分完成</span>
+              <span style="padding: 4px 12px; border-radius: 4px; background: var(--bg); color: var(--text-1); font-size: 13px; cursor: pointer; border: 1px solid var(--border);">未执行</span>
+            </div>
+          </div>
+          <div style="margin-bottom: 8px;">
+            <div style="font-size: 13px; font-weight: 500; color: var(--text-1); margin-bottom: 6px;">客户反应</div>
+            <div contenteditable="true" style="background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 8px 12px; font-size: 14px; min-height: 56px; line-height: 1.5; color: var(--text-1);">已经和采购部张经理通话，对方确认合同条款没有问题，预计下周一签署。</div>
+          </div>
+          <div style="margin-bottom: 12px;">
+            <div style="font-size: 13px; font-weight: 500; color: var(--text-1); margin-bottom: 6px;">下一步建议</div>
+            <div contenteditable="true" style="background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 8px 12px; font-size: 14px; min-height: 40px; line-height: 1.5; color: var(--text-1);">准备签约材料，周一前发给对方法务审核</div>
+          </div>
+          <button class="btn btn-primary" style="width: 100%;">提交反馈</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+function setView(view) {
+  document.querySelectorAll('.controls .toggle-btn').forEach((btn, i) => {
+    btn.classList.toggle('active',
+      (view === 'chat' && i === 0) ||
+      (view === 'workspace' && i === 1) ||
+      (view === 'sales' && i === 2)
+    );
+  });
+  document.getElementById('view-chat').style.display = view === 'chat' ? 'block' : 'none';
+  document.getElementById('view-workspace').style.display = view === 'workspace' ? 'block' : 'none';
+  document.getElementById('view-sales').style.display = view === 'sales' ? 'block' : 'none';
+}
+
+function toggleDark() {
+  document.body.classList.toggle('dark');
+  const btn = document.querySelectorAll('.controls .toggle-btn')[3];
+  btn.textContent = document.body.classList.contains('dark') ? '浅色模式' : '深色模式';
+}
+</script>
+
+</body>
+</html>

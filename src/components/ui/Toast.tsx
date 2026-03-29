@@ -2,18 +2,25 @@ import { useEffect, useState } from "react";
 import { CheckCircle2, XCircle, Info, AlertTriangle, X } from "lucide-react";
 import { useToast, type ToastType } from "@/contexts/ToastContext";
 
+const iconClassMap: Record<ToastType, string> = {
+  success: "text-success",
+  error: "text-destructive",
+  info: "text-primary",
+  warning: "text-warning",
+};
+
 const iconMap: Record<ToastType, React.ReactNode> = {
-  success: <CheckCircle2 size={18} color="#22c55e" />,
-  error: <XCircle size={18} color="#ef4444" />,
-  info: <Info size={18} color="#0ea5e9" />,
-  warning: <AlertTriangle size={18} color="#f59e0b" />,
+  success: <CheckCircle2 size={18} className="text-success" />,
+  error: <XCircle size={18} className="text-destructive" />,
+  info: <Info size={18} className="text-primary" />,
+  warning: <AlertTriangle size={18} className="text-warning" />,
 };
 
 const borderColorMap: Record<ToastType, string> = {
-  success: "#22c55e",
-  error: "#ef4444",
-  info: "#0ea5e9",
-  warning: "#f59e0b",
+  success: "border-l-success",
+  error: "border-l-destructive",
+  info: "border-l-primary",
+  warning: "border-l-warning",
 };
 
 function ToastItem({
@@ -40,20 +47,14 @@ function ToastItem({
   return (
     <div
       style={{
-        backgroundColor: "#f9fafb",
-        borderColor: "#d1d5db",
-        borderLeftColor: borderColorMap[type],
         transform: visible ? "translateX(0)" : "translateX(100%)",
         opacity: visible ? 1 : 0,
         transition: "transform 300ms ease-out, opacity 300ms ease-out",
       }}
-      className="flex items-center gap-3 rounded-md border border-l-4 px-4 py-3 shadow-lg"
+      className={`flex items-center gap-3 rounded-md border border-border ${borderColorMap[type]} border-l-4 bg-muted px-4 py-3 shadow-lg`}
     >
       <span className="flex-shrink-0">{iconMap[type]}</span>
-      <span
-        className="flex-1 text-sm"
-        style={{ color: "#111827" }}
-      >
+      <span className="flex-1 text-sm text-foreground">
         {message}
       </span>
       <button
@@ -61,7 +62,7 @@ function ToastItem({
         className="flex-shrink-0 cursor-pointer rounded p-0.5 transition-colors hover:bg-white/10"
         aria-label="Close toast"
       >
-        <X size={14} color="#64748b" />
+        <X size={14} className="text-muted-foreground" />
       </button>
     </div>
   );

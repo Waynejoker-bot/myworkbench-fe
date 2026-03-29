@@ -357,23 +357,20 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(function ChatI
 
   return (
     <div
-      className="px-6 py-3 border-t"
-      style={{ backgroundColor: '#f9fafb', borderColor: '#d1d5db' }}
+      className="px-6 py-3 border-t bg-muted border-border"
     >
       {/* 目标 Agent 提示 */}
       {targetAgent && (
         <div
-          className="mb-2 px-3 py-1.5 rounded-lg flex items-center gap-2 border"
-          style={{ backgroundColor: 'rgba(14, 165, 233, 0.1)', borderColor: 'rgba(14, 165, 233, 0.3)' }}
+          className="mb-2 px-3 py-1.5 rounded-lg flex items-center gap-2 border bg-primary/10 border-primary/30"
         >
-          <AtSign className="h-4 w-4" style={{ color: '#0ea5e9' }} />
-          <span className="text-sm" style={{ color: '#38bdf8' }}>
+          <AtSign className="h-4 w-4 text-primary" />
+          <span className="text-sm text-primary">
             发送给: <span className="font-medium">@{targetAgent.name}</span>
           </span>
           <button
             onClick={() => setTargetAgent(null)}
-            className="ml-auto hover:opacity-80"
-            style={{ color: '#0ea5e9' }}
+            className="ml-auto hover:opacity-80 text-primary"
           >
             <X className="h-4 w-4" />
           </button>
@@ -383,17 +380,15 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(function ChatI
       {/* 已上传文件提示 */}
       {uploadedFile && (
         <div
-          className="mb-2 px-3 py-1.5 rounded-lg flex items-center gap-2 border"
-          style={{ backgroundColor: 'rgba(14, 165, 233, 0.08)', borderColor: '#d1d5db' }}
+          className="mb-2 px-3 py-1.5 rounded-lg flex items-center gap-2 border bg-primary/10 border-border"
         >
-          <FileText className="h-4 w-4" style={{ color: '#0ea5e9' }} />
-          <span className="text-sm truncate" style={{ color: '#111827' }}>
+          <FileText className="h-4 w-4 text-primary" />
+          <span className="text-sm truncate text-foreground">
             {uploadedFile.name}
           </span>
           <button
             onClick={handleRemoveUploadedFile}
-            className="ml-auto hover:opacity-80"
-            style={{ color: '#64748b' }}
+            className="ml-auto hover:opacity-80 text-muted-foreground"
           >
             <X className="h-4 w-4" />
           </button>
@@ -406,19 +401,16 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(function ChatI
           {uploadedImages.map((image) => (
             <div
               key={image.id}
-              className="relative inline-flex items-center gap-2 px-3 py-2 rounded-lg border"
-              style={{ backgroundColor: 'rgba(14, 165, 233, 0.08)', borderColor: '#d1d5db' }}
+              className="relative inline-flex items-center gap-2 px-3 py-2 rounded-lg border bg-primary/10 border-border"
             >
               <img
                 src={image.url}
                 alt={image.filename}
-                className="h-16 w-16 object-cover rounded"
-                style={{ backgroundColor: '#e5e7eb' }}
+                className="h-16 w-16 object-cover rounded bg-border"
               />
               <button
                 onClick={() => handleRemoveImage(image.id)}
-                className="absolute -top-1.5 -right-1.5 p-0.5 rounded-full hover:opacity-80 transition-opacity"
-                style={{ backgroundColor: '#64748b', color: '#fff' }}
+                className="absolute -top-1.5 -right-1.5 p-0.5 rounded-full hover:opacity-80 transition-opacity bg-muted-foreground text-white"
               >
                 <X className="h-3 w-3" />
               </button>
@@ -428,22 +420,7 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(function ChatI
       )}
 
       <div
-        className="rounded-2xl border transition-all duration-200"
-        style={{
-          backgroundColor: '#f3f4f6',
-          borderColor: '#d1d5db',
-          boxShadow: '0 0 0 0 rgba(14, 165, 233, 0)',
-        }}
-        onFocus={(e) => {
-          e.currentTarget.style.borderColor = '#0ea5e9';
-          e.currentTarget.style.boxShadow = '0 0 0 2px rgba(14, 165, 233, 0.15)';
-        }}
-        onBlur={(e) => {
-          if (!e.currentTarget.contains(e.relatedTarget)) {
-            e.currentTarget.style.borderColor = '#d1d5db';
-            e.currentTarget.style.boxShadow = '0 0 0 0 rgba(14, 165, 233, 0)';
-          }
-        }}
+        className="rounded-2xl border transition-all duration-200 bg-surface-2 border-border focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/15"
       >
         {/* Row 1: Textarea area */}
         <div className="relative px-4 pt-3 pb-2">
@@ -451,17 +428,15 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(function ChatI
           {showAgentMention && (
             <div
               ref={mentionRef}
-              className="absolute bottom-full left-0 mb-2 rounded-xl shadow-lg py-1 z-20 min-w-[200px] max-h-[250px] overflow-y-auto border"
-              style={{ backgroundColor: '#f3f4f6', borderColor: '#d1d5db' }}
+              className="absolute bottom-full left-0 mb-2 rounded-xl shadow-lg py-1 z-20 min-w-[200px] max-h-[250px] overflow-y-auto border bg-surface-2 border-border"
             >
               <div
-                className="px-3 py-1.5 text-xs border-b"
-                style={{ color: '#64748b', borderColor: '#d1d5db' }}
+                className="px-3 py-1.5 text-xs border-b text-muted-foreground border-border"
               >
                 选择 Agent
               </div>
               {filteredAgents.length === 0 ? (
-                <div className="px-3 py-2 text-sm" style={{ color: '#64748b' }}>
+                <div className="px-3 py-2 text-sm text-muted-foreground">
                   没有匹配的 Agent
                 </div>
               ) : (
@@ -470,10 +445,7 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(function ChatI
                     key={agent.agent_id}
                     onClick={() => handleSelectMentionAgent(agent)}
                     onMouseEnter={() => setMentionSelectedIndex(index)}
-                    className="w-full px-3 py-2 flex items-center gap-2 transition-colors text-left"
-                    style={{
-                      backgroundColor: index === mentionSelectedIndex ? '#e5e7eb' : 'transparent',
-                    }}
+                    className={`w-full px-3 py-2 flex items-center gap-2 transition-colors text-left ${index === mentionSelectedIndex ? 'bg-muted' : 'bg-transparent'}`}
                   >
                     <AgentAvatar
                       agentId={agent.agent_id}
@@ -482,14 +454,14 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(function ChatI
                       className="flex-shrink-0"
                     />
                     <div className="flex-1 min-w-0 flex items-center gap-1.5 overflow-hidden">
-                      <span className="text-sm shrink-0" style={{ color: '#111827' }}>
+                      <span className="text-sm shrink-0 text-foreground">
                         {agent.name}
                       </span>
-                      <span className="text-xs shrink-0" style={{ color: '#475569' }}>
+                      <span className="text-xs shrink-0 text-muted-foreground">
                         ({agent.agent_id})
                       </span>
                       {agent.config?.description && (
-                        <span className="text-xs truncate" style={{ color: '#475569' }}>
+                        <span className="text-xs truncate text-muted-foreground">
                           - {agent.config.description}
                         </span>
                       )}
@@ -519,12 +491,11 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(function ChatI
                 : "输入消息... (使用 @ 选择目标 Agent)"
             }
             disabled={disabled || isSending || !selectedAgentId || isUploading || convertingFile}
-            className="w-full bg-transparent resize-none focus:outline-none text-sm min-h-[28px] disabled:opacity-50 scrollbar-thin scrollbar-track-transparent"
+            className="w-full bg-transparent resize-none focus:outline-none text-sm min-h-[28px] disabled:opacity-50 scrollbar-thin scrollbar-track-transparent text-foreground"
             style={{
               height: 'auto',
               maxHeight: '220px',
               overflowY: 'hidden' as const,
-              color: '#111827',
             }}
           />
         </div>
@@ -537,17 +508,13 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(function ChatI
               <button
                 onClick={() => setShowPlusMenu(!showPlusMenu)}
                 disabled={disabled || isSending || !selectedAgentId || isUploading || convertingFile}
-                className="p-1.5 rounded-lg transition-colors shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
-                style={{
-                  backgroundColor: showPlusMenu ? '#0ea5e9' : 'transparent',
-                  color: showPlusMenu ? '#fff' : '#64748b',
-                }}
+                className={`p-1.5 rounded-lg transition-colors shrink-0 disabled:opacity-50 disabled:cursor-not-allowed ${showPlusMenu ? 'bg-primary text-white' : 'bg-transparent text-muted-foreground'}`}
                 title="上传文件"
               >
                 {convertingFile ? (
-                  <div className="h-5 w-5 animate-spin rounded-full border-2 border-t-transparent" style={{ borderColor: '#0ea5e9', borderTopColor: 'transparent' }} />
+                  <div className="h-5 w-5 animate-spin rounded-full border-2 border-primary border-t-transparent" />
                 ) : isUploading ? (
-                  <div className="h-5 w-5 animate-spin rounded-full border-2 border-t-transparent" style={{ borderColor: '#64748b', borderTopColor: 'transparent' }} />
+                  <div className="h-5 w-5 animate-spin rounded-full border-2 border-muted-foreground border-t-transparent" />
                 ) : showPlusMenu ? (
                   <X className="h-5 w-5" />
                 ) : (
@@ -558,37 +525,27 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(function ChatI
               {/* Plus Menu Popup */}
               {showPlusMenu && (
                 <div
-                  className="absolute bottom-full left-0 mb-2 rounded-xl shadow-lg py-1 z-20 min-w-[160px] border"
-                  style={{ backgroundColor: '#f3f4f6', borderColor: '#d1d5db' }}
+                  className="absolute bottom-full left-0 mb-2 rounded-xl shadow-lg py-1 z-20 min-w-[160px] border bg-surface-2 border-border"
                 >
                   <button
                     onClick={() => handlePlusMenuItem('image')}
-                    className="w-full px-4 py-2.5 flex items-center gap-3 transition-colors text-left text-sm"
-                    style={{ color: '#111827' }}
-                    onMouseEnter={e => (e.currentTarget.style.backgroundColor = '#e5e7eb')}
-                    onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'transparent')}
+                    className="w-full px-4 py-2.5 flex items-center gap-3 transition-colors text-left text-sm text-foreground hover:bg-muted"
                   >
-                    <Image className="h-4 w-4" style={{ color: '#0ea5e9' }} />
+                    <Image className="h-4 w-4 text-primary" />
                     上传图片
                   </button>
                   <button
                     onClick={() => handlePlusMenuItem('file')}
-                    className="w-full px-4 py-2.5 flex items-center gap-3 transition-colors text-left text-sm"
-                    style={{ color: '#111827' }}
-                    onMouseEnter={e => (e.currentTarget.style.backgroundColor = '#e5e7eb')}
-                    onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'transparent')}
+                    className="w-full px-4 py-2.5 flex items-center gap-3 transition-colors text-left text-sm text-foreground hover:bg-muted"
                   >
-                    <File className="h-4 w-4" style={{ color: '#22c55e' }} />
+                    <File className="h-4 w-4 text-success" />
                     上传文件
                   </button>
                   <button
                     onClick={() => handlePlusMenuItem('word')}
-                    className="w-full px-4 py-2.5 flex items-center gap-3 transition-colors text-left text-sm"
-                    style={{ color: '#111827' }}
-                    onMouseEnter={e => (e.currentTarget.style.backgroundColor = '#e5e7eb')}
-                    onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'transparent')}
+                    className="w-full px-4 py-2.5 flex items-center gap-3 transition-colors text-left text-sm text-foreground hover:bg-muted"
                   >
-                    <FileType className="h-4 w-4" style={{ color: '#38bdf8' }} />
+                    <FileType className="h-4 w-4 text-primary" />
                     Word 文档
                   </button>
                 </div>
@@ -598,11 +555,10 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(function ChatI
             {/* Upload Indicator */}
             {isUploading && (
               <div
-                className="p-1.5 rounded-lg shrink-0"
-                style={{ backgroundColor: 'rgba(14, 165, 233, 0.1)' }}
+                className="p-1.5 rounded-lg shrink-0 bg-primary/10"
                 title="上传图片中..."
               >
-                <div className="h-5 w-5 animate-spin rounded-full border-2 border-t-transparent" style={{ borderColor: '#0ea5e9', borderTopColor: 'transparent' }} />
+                <div className="h-5 w-5 animate-spin rounded-full border-2 border-primary border-t-transparent" />
               </div>
             )}
           </div>
@@ -612,8 +568,7 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(function ChatI
             {isGenerating ? (
               <button
                 onClick={onStop}
-                className="p-1.5 rounded-lg transition-colors shrink-0"
-                style={{ backgroundColor: '#ef4444' }}
+                className="p-1.5 rounded-lg transition-colors shrink-0 bg-destructive"
                 title="停止生成"
               >
                 <Square className="h-5 w-5 text-white" fill="white" />
@@ -622,11 +577,7 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(function ChatI
               <button
                 onClick={handleSend}
                 disabled={!input.trim() || disabled || isSending || !selectedAgentId || isUploading || convertingFile}
-                className="p-1.5 rounded-lg transition-all duration-200 shrink-0 disabled:cursor-not-allowed"
-                style={{
-                  backgroundColor: hasContent ? '#0ea5e9' : 'transparent',
-                  color: hasContent ? '#fff' : '#64748b',
-                }}
+                className={`p-1.5 rounded-lg transition-all duration-200 shrink-0 disabled:cursor-not-allowed ${hasContent ? 'bg-primary text-white' : 'bg-transparent text-muted-foreground'}`}
                 title={
                   isSending
                     ? "发送中..."

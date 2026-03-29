@@ -14,6 +14,7 @@ export enum ContentType {
   // Basic types
   TEXT = 'text',
   MARKDOWN = 'markdown',
+  THINKING = 'thinking',
 
   // Code related
   CODE = 'code',
@@ -36,6 +37,7 @@ export enum ContentType {
 
   // Interactive
   CARD = 'card',
+  TASK_CARD = 'task_card',
   FORM = 'form',
   PROGRESS = 'progress',
 
@@ -65,6 +67,14 @@ export interface TextBlock extends ContentBlock {
  */
 export interface MarkdownBlock extends ContentBlock {
   type: ContentType.MARKDOWN;
+  content: string;
+}
+
+/**
+ * Thinking content block - Agent's intermediate reasoning
+ */
+export interface ThinkingBlock extends ContentBlock {
+  type: ContentType.THINKING;
   content: string;
 }
 
@@ -254,11 +264,22 @@ export interface SystemBlock extends ContentBlock {
 }
 
 /**
+ * Task card block (references TaskCard by ID, state lives in Zustand store)
+ */
+export interface TaskCardContentBlock extends ContentBlock {
+  type: ContentType.TASK_CARD;
+  taskCardId: string;
+  /** Inline card data for lazy store registration (avoids module instance mismatch) */
+  taskCardData?: import('../types/task-card').TaskCard;
+}
+
+/**
  * Union type of all content blocks
  */
 export type AnyContentBlock =
   | TextBlock
   | MarkdownBlock
+  | ThinkingBlock
   | CodeBlock
   | CodeResultBlock
   | TableBlock
@@ -272,6 +293,7 @@ export type AnyContentBlock =
   | ToolResultBlock
   | ProgressBlock
   | CardBlock
+  | TaskCardContentBlock
   | FormBlock
   | ErrorBlock
   | SystemBlock;

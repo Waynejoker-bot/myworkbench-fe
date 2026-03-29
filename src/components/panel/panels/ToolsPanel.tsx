@@ -71,9 +71,9 @@ export function ToolsPanel({ agentId }: PanelProps) {
   // ── No agent ─────────────────────────────────────────────
   if (!agentId) {
     return (
-      <div style={{ height: "100%", background: "#f9fafb", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 24 }}>
-        <FolderOpen className="h-8 w-8" style={{ color: "#d1d5db" }} />
-        <p className="mt-3 text-sm" style={{ color: "#6b7280", textAlign: "center" }}>
+      <div className="bg-surface-2 flex flex-col items-center justify-center p-6" style={{ height: "100%" }}>
+        <FolderOpen className="h-8 w-8 text-border" />
+        <p className="mt-3 text-sm text-muted-foreground text-center">
           暂无关联的 Agent
         </p>
       </div>
@@ -83,8 +83,8 @@ export function ToolsPanel({ agentId }: PanelProps) {
   // ── Loading ──────────────────────────────────────────────
   if (loadingSkills) {
     return (
-      <div style={{ height: "100%", background: "#f9fafb", display: "flex", alignItems: "center", justifyContent: "center" }}>
-        <Loader2 className="h-6 w-6 animate-spin" style={{ color: "#0ea5e9" }} />
+      <div className="bg-surface-2 flex items-center justify-center" style={{ height: "100%" }}>
+        <Loader2 className="h-6 w-6 animate-spin text-primary" />
       </div>
     );
   }
@@ -92,12 +92,11 @@ export function ToolsPanel({ agentId }: PanelProps) {
   // ── Error ────────────────────────────────────────────────
   if (error) {
     return (
-      <div style={{ height: "100%", background: "#f9fafb", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 24 }}>
-        <p className="text-sm" style={{ color: "#ef4444", textAlign: "center" }}>{error}</p>
+      <div className="bg-surface-2 flex flex-col items-center justify-center p-6" style={{ height: "100%" }}>
+        <p className="text-sm text-destructive text-center">{error}</p>
         <button
           onClick={loadSkills}
-          className="mt-3 px-3 py-1.5 rounded-lg text-xs font-medium text-white"
-          style={{ background: "#0ea5e9" }}
+          className="mt-3 px-3 py-1.5 rounded-lg text-xs font-medium text-white bg-primary"
         >
           重试
         </button>
@@ -109,18 +108,18 @@ export function ToolsPanel({ agentId }: PanelProps) {
 
   // ── Main: split view ─────────────────────────────────────
   return (
-    <div style={{ height: "100%", background: "#f9fafb", display: "flex", flexDirection: "column", overflow: "hidden" }}>
+    <div className="bg-surface-2 flex flex-col overflow-hidden" style={{ height: "100%" }}>
       {/* Skills info bar */}
-      <div style={{ padding: "10px 16px 6px", borderBottom: "1px solid #e5e7eb", background: "#ffffff", flexShrink: 0 }}>
+      <div className="border-b border-border bg-card shrink-0" style={{ padding: "10px 16px 6px" }}>
         <div className="flex items-center gap-2">
-          <Wrench className="h-3.5 w-3.5" style={{ color: "#64748b" }} />
-          <span className="text-xs font-semibold" style={{ color: "#374151" }}>
+          <Wrench className="h-3.5 w-3.5 text-muted-foreground" />
+          <span className="text-xs font-semibold text-foreground">
             {skillsData?.agent_name || agentId}
           </span>
-          <span className="text-xs" style={{ color: "#9ca3af" }}>— Skills</span>
+          <span className="text-xs text-muted-foreground">— Skills</span>
         </div>
         {skillsData?.full_path && (
-          <p className="text-xs truncate mt-0.5" style={{ color: "#9ca3af", fontFamily: "monospace" }} title={skillsData.full_path}>
+          <p className="text-xs truncate mt-0.5 text-muted-foreground font-mono" title={skillsData.full_path}>
             {skillsData.full_path}
           </p>
         )}
@@ -129,12 +128,12 @@ export function ToolsPanel({ agentId }: PanelProps) {
       {/* Content area */}
       <div style={{ flex: 1, overflow: "hidden", display: "flex", flexDirection: "column" }}>
         {items.length === 0 ? (
-          <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 24 }}>
-            <FolderOpen className="h-8 w-8" style={{ color: "#d1d5db" }} />
-            <p className="mt-3 text-xs" style={{ color: "#6b7280", textAlign: "center" }}>
+          <div className="flex-1 flex flex-col items-center justify-center p-6">
+            <FolderOpen className="h-8 w-8 text-border" />
+            <p className="mt-3 text-xs text-muted-foreground text-center">
               该 Agent 尚未配置 Skills
             </p>
-            <p className="mt-1 text-xs" style={{ color: "#d1d5db", textAlign: "center" }}>
+            <p className="mt-1 text-xs text-border text-center">
               请在 Agent 工作目录下创建 skills 目录
             </p>
           </div>
@@ -151,19 +150,9 @@ export function ToolsPanel({ agentId }: PanelProps) {
                   <button
                     key={item.name}
                     onClick={() => handleFileClick(item)}
-                    className="flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-left transition-all"
+                    className="flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-left transition-all bg-card border border-border hover:border-primary hover:bg-primary/5"
                     style={{
-                      background: "#ffffff",
-                      border: "1px solid #e5e7eb",
                       cursor: item.type === "file" ? "pointer" : "default",
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.borderColor = "#0ea5e9";
-                      e.currentTarget.style.background = "#f0f9ff";
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.borderColor = "#e5e7eb";
-                      e.currentTarget.style.background = "#ffffff";
                     }}
                   >
                     <div
@@ -178,7 +167,7 @@ export function ToolsPanel({ agentId }: PanelProps) {
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-1.5">
-                        <span className="text-xs font-medium truncate" style={{ color: "#111827" }} title={item.name}>
+                        <span className="text-xs font-medium truncate text-foreground" title={item.name}>
                           {item.name}
                         </span>
                         <span
@@ -189,13 +178,13 @@ export function ToolsPanel({ agentId }: PanelProps) {
                         </span>
                       </div>
                       {item.size != null && (
-                        <span className="text-xs" style={{ color: "#9ca3af" }}>
+                        <span className="text-xs text-muted-foreground">
                           {formatFileSize(item.size)}
                         </span>
                       )}
                     </div>
                     {item.type === "file" && (
-                      <ChevronRight className="h-3 w-3 shrink-0" style={{ color: "#d1d5db" }} />
+                      <ChevronRight className="h-3 w-3 shrink-0 text-border" />
                     )}
                   </button>
                 );
@@ -208,16 +197,7 @@ export function ToolsPanel({ agentId }: PanelProps) {
                 {/* Back button */}
                 <button
                   onClick={closePreview}
-                  className="flex items-center gap-1.5 px-2 py-2 rounded-lg mb-2 transition-colors shrink-0"
-                  style={{ background: "#ffffff", border: "1px solid #e5e7eb", color: "#64748b" }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.borderColor = "#0ea5e9";
-                    e.currentTarget.style.color = "#0ea5e9";
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.borderColor = "#e5e7eb";
-                    e.currentTarget.style.color = "#64748b";
-                  }}
+                  className="flex items-center gap-1.5 px-2 py-2 rounded-lg mb-2 transition-colors shrink-0 bg-card border border-border text-muted-foreground hover:border-primary hover:text-primary"
                 >
                   <X className="h-3 w-3" />
                   <span className="text-xs">关闭预览</span>
@@ -225,27 +205,25 @@ export function ToolsPanel({ agentId }: PanelProps) {
 
                 {/* File name */}
                 <div className="mb-2 px-1">
-                  <span className="text-xs font-medium" style={{ color: "#374151" }}>
+                  <span className="text-xs font-medium text-foreground">
                     {selectedFile.name}
                   </span>
                 </div>
 
                 {/* Content */}
-                <div style={{ flex: 1, overflow: "auto", background: "#ffffff", border: "1px solid #e5e7eb", borderRadius: 8 }}>
+                <div className="flex-1 overflow-auto bg-card border border-border rounded-lg">
                   {loadingContent ? (
-                    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: 40 }}>
-                      <Loader2 className="h-5 w-5 animate-spin" style={{ color: "#0ea5e9" }} />
+                    <div className="flex items-center justify-center p-10">
+                      <Loader2 className="h-5 w-5 animate-spin text-primary" />
                     </div>
                   ) : contentError ? (
-                    <div style={{ padding: 16 }}>
-                      <p className="text-xs" style={{ color: "#ef4444" }}>{contentError}</p>
+                    <div className="p-4">
+                      <p className="text-xs text-destructive">{contentError}</p>
                     </div>
                   ) : (
                     <pre
-                      className="text-xs leading-relaxed p-3"
+                      className="text-xs leading-relaxed p-3 text-foreground font-mono"
                       style={{
-                        color: "#374151",
-                        fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
                         margin: 0,
                         whiteSpace: "pre-wrap",
                         wordBreak: "break-word",

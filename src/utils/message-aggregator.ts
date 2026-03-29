@@ -11,6 +11,7 @@
 import type { RawMessage, UIMessage, StreamChunk } from '@/types/message-station';
 import { MessageStatus, DeliveryStatus } from '@/types/message-station';
 import type { AnyContentBlock } from '@/types/content-block';
+import { ContentType } from '@/types/content-block';
 import { parsePayload, parsePayloadToBlocks, determineRole } from './message-converters';
 
 /**
@@ -54,11 +55,10 @@ export class MessageAggregator {
       throw new Error('Failed to extract first/last message from group');
     }
 
-    // IMPORTANT: poll-message returns COMPLETE content, not incremental.
-    // So we only use the LAST chunk's payload, not aggregate all chunks.
+    // Content from last payload (for compatibility field)
     const content = parsePayload(last.payload);
 
-    // Build chunks array (keep all chunks for status tracking, but content is from last)
+    // Build chunks array (keep all chunks for status tracking)
     const chunks: StreamChunk[] = sorted.map(m => ({
       seq: m.seq,
       status: m.status as MessageStatus,
@@ -66,19 +66,20 @@ export class MessageAggregator {
       timestamp: m.timestamp || m.created_at,
     }));
 
-    // Parse content blocks from the LAST payload only (complete content)
+    // Merge content blocks from ALL payloads (not just the last one).
+    // Each payload is a complete snapshot of that send's pending_items.
+    // We need to deduplicate: later payloads may contain updated versions of
+    // items from earlier payloads (same tool_use_id, or accumulated text).
+    // Strategy: collect all unique blocks across all payloads, using the latest
+    // version of each. Tool blocks are identified by toolName+parameters combo,
+    // text/thinking blocks accumulate across payloads.
     let contentBlocks: AnyContentBlock[] = [];
 
     try {
-      console.log('[message-aggregator] Parsing lastPayload:', last.payload);
-      contentBlocks = parsePayloadToBlocks(last.payload);
-      console.log('[message-aggregator] Parsed contentBlocks:', contentBlocks);
+      contentBlocks = this.mergeAllPayloads(sorted);
     } catch (error) {
-      // Fallback to parsing from content
-      console.error('[message-aggregator] Error parsing contentBlocks, using fallback:', error);
-      console.log('[message-aggregator] Fallback content:', content);
-      contentBlocks = parsePayloadToBlocks(content);
-      console.log('[message-aggregator] Fallback contentBlocks:', contentBlocks);
+      console.error('[message-aggregator] Error merging payloads, falling back to last:', error);
+      contentBlocks = parsePayloadToBlocks(last.payload, { source: last.source, target: last.target });
     }
 
     const isComplete = last.status === MessageStatus.END;
@@ -115,6 +116,113 @@ export class MessageAggregator {
 
     console.log('[message-aggregator] Returning UIMessage:', uiMessage.id, 'contentBlocks:', uiMessage.contentBlocks);
     return uiMessage;
+  }
+
+  /**
+   * Merge content blocks from all payloads of a message group.
+   * Each payload is a snapshot of pending_items at send time.
+   * Later payloads may contain updated versions of the same items.
+   * We deduplicate tools by tool_use_id and keep the latest text per "slot".
+   */
+  static mergeAllPayloads(sorted: RawMessage[]): AnyContentBlock[] {
+    // Parse all payloads into block arrays
+    const allBlockSets: AnyContentBlock[][] = [];
+    for (const msg of sorted) {
+      try {
+        const blocks = parsePayloadToBlocks(msg.payload, {
+          source: msg.source,
+          target: msg.target,
+        });
+        if (blocks.length > 0) {
+          allBlockSets.push(blocks);
+        }
+      } catch {
+        // skip unparseable payloads
+      }
+    }
+
+    if (allBlockSets.length === 0) return [];
+    if (allBlockSets.length === 1) return allBlockSets[0]!;
+
+    // Each payload is a snapshot. Later snapshots supersede earlier ones
+    // for the SAME items, but new items (from new rounds) should be appended.
+    //
+    // Strategy: track seen tool blocks by a fingerprint (toolName + first 50 chars of params).
+    // For text/thinking/markdown blocks, each payload's text block replaces the previous
+    // text from the same "position" but new positions are appended.
+
+    const result: AnyContentBlock[] = [];
+    const seenToolKeys = new Set<string>();
+
+    for (const blocks of allBlockSets) {
+      for (const block of blocks) {
+        if (block.type === ContentType.TOOL_CALL) {
+          const tool = block as any;
+          // Use tool_use_id or fallback to name+params fingerprint
+          // Use toolName+params as fingerprint for dedup (tool.id is random per parse)
+          const key = `${tool.toolName}:${JSON.stringify(tool.parameters).slice(0, 80)}`;
+          if (seenToolKeys.has(key)) {
+            // Update existing tool block in result
+            const idx = result.findIndex(b => {
+              if (b.type !== ContentType.TOOL_CALL) return false;
+              const t = b as any;
+              const k = `${t.toolName}:${JSON.stringify(t.parameters).slice(0, 80)}`;
+              return k === key;
+            });
+            if (idx >= 0) result[idx] = block;
+          } else {
+            seenToolKeys.add(key);
+            result.push(block);
+          }
+        } else {
+          // For text/thinking/markdown: each payload is a snapshot.
+          // Later payloads may resend the same text as different block types
+          // (e.g. THINKING in one chunk, MARKDOWN in another).
+          // Deduplicate ACROSS all text-like types using normalized content.
+          const content = ((block as any).content || '').trim();
+          if (!content) continue;
+
+          const isTextLike = (type: ContentType) =>
+            type === ContentType.THINKING || type === ContentType.TEXT || type === ContentType.MARKDOWN;
+
+          // Normalize: strip markdown formatting for comparison
+          const normalize = (s: string) => s.replace(/[`*_#\[\]()]/g, '').replace(/\s+/g, ' ').trim();
+          const normalizedContent = normalize(content);
+
+          // Find existing text-like block with same or subset content
+          const existingIdx = result.findIndex(b => {
+            if (!isTextLike(b.type)) return false;
+            const existing = normalize(((b as any).content || '').trim());
+            return existing === normalizedContent || normalizedContent.includes(existing);
+          });
+
+          if (existingIdx >= 0) {
+            // Keep the THINKING version (preferred style), update content if expanded
+            const existing = result[existingIdx]!;
+            if (block.type === ContentType.THINKING) {
+              result[existingIdx] = block; // prefer thinking style
+            } else if (existing.type !== ContentType.THINKING) {
+              result[existingIdx] = block; // update non-thinking with newer version
+            }
+            // If existing is THINKING and new is MARKDOWN, keep existing (thinking style)
+          } else {
+            // Check if new content is a subset of an existing block
+            const supersetIdx = result.findIndex(b => {
+              if (!isTextLike(b.type)) return false;
+              const existing = normalize(((b as any).content || '').trim());
+              return existing.includes(normalizedContent);
+            });
+            if (supersetIdx >= 0) {
+              // Already have a longer version, skip
+              continue;
+            }
+            result.push(block);
+          }
+        }
+      }
+    }
+
+    return result;
   }
 
   /**

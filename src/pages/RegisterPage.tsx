@@ -60,19 +60,14 @@ export default function RegisterPage() {
 
   return (
     <div
-      className="min-h-screen flex items-center justify-center px-4"
-      style={{ backgroundColor: "#ffffff" }}
+      className="min-h-screen flex items-center justify-center px-4 bg-card"
     >
       <div
-        className="w-full max-w-sm rounded-xl p-8"
-        style={{
-          backgroundColor: "#f9fafb",
-          border: "1px solid #d1d5db",
-        }}
+        className="w-full max-w-sm rounded-xl p-8 bg-surface-2 border border-border"
       >
         {/* Brand */}
         <h1
-          className="text-3xl font-bold text-center mb-2"
+          className="text-3xl font-bold text-center mb-2 font-display"
           style={{
             background: "linear-gradient(135deg, #0ea5e9, #38bdf8)",
             WebkitBackgroundClip: "text",
@@ -81,7 +76,7 @@ export default function RegisterPage() {
         >
           ARMfn
         </h1>
-        <p className="text-center mb-6" style={{ color: "#6b7280", fontSize: "14px" }}>
+        <p className="text-center mb-6 text-muted-foreground text-sm">
           创建新账号
         </p>
 
@@ -93,12 +88,7 @@ export default function RegisterPage() {
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               placeholder="用户名（至少3个字符）"
-              className="w-full px-4 py-3 rounded-lg text-sm outline-none transition-colors"
-              style={{
-                backgroundColor: "#f3f4f6",
-                border: "1px solid #d1d5db",
-                color: "#111827",
-              }}
+              className="w-full px-4 py-3 rounded-lg text-sm outline-none transition-colors bg-muted border border-border text-foreground"
             />
           </div>
 
@@ -109,12 +99,7 @@ export default function RegisterPage() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="密码（至少6个字符）"
-              className="w-full px-4 py-3 rounded-lg text-sm outline-none transition-colors"
-              style={{
-                backgroundColor: "#f3f4f6",
-                border: "1px solid #d1d5db",
-                color: "#111827",
-              }}
+              className="w-full px-4 py-3 rounded-lg text-sm outline-none transition-colors bg-muted border border-border text-foreground"
             />
           </div>
 
@@ -125,20 +110,14 @@ export default function RegisterPage() {
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
               placeholder="确认密码"
-              className="w-full px-4 py-3 rounded-lg text-sm outline-none transition-colors"
-              style={{
-                backgroundColor: "#f3f4f6",
-                border: error && confirmPassword && password !== confirmPassword
-                  ? "1px solid #ef4444"
-                  : "1px solid #d1d5db",
-                color: "#111827",
-              }}
+              className={`w-full px-4 py-3 rounded-lg text-sm outline-none transition-colors bg-muted text-foreground border ${
+                error && confirmPassword && password !== confirmPassword
+                  ? "border-destructive"
+                  : "border-border"
+              }`}
             />
             {error && (
-              <p
-                className="mt-2 text-sm"
-                style={{ color: "#ef4444" }}
-              >
+              <p className="mt-2 text-sm text-destructive">
                 {error}
               </p>
             )}
@@ -148,20 +127,18 @@ export default function RegisterPage() {
           <button
             type="submit"
             disabled={isLoading}
-            className="w-full py-3 rounded-lg text-sm font-medium text-white transition-opacity disabled:opacity-50"
-            style={{ backgroundColor: "#0ea5e9" }}
+            className="w-full py-3 rounded-lg text-sm font-medium text-white transition-opacity disabled:opacity-50 bg-primary"
           >
             {isLoading ? "注册中..." : "注册"}
           </button>
 
           {/* Login link */}
-          <p className="text-center text-sm" style={{ color: "#6b7280" }}>
+          <p className="text-center text-sm text-muted-foreground">
             已有账号？{" "}
             <button
               type="button"
               onClick={() => navigate("/login")}
-              className="font-medium hover:underline"
-              style={{ color: "#0ea5e9" }}
+              className="font-medium hover:underline text-primary"
             >
               立即登录
             </button>

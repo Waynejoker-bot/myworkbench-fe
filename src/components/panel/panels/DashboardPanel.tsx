@@ -6,22 +6,16 @@ export function DashboardPanel() {
   const { counts, activeTasks, recentActivity, isLoading, refresh } = useDashboard()
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: '#f9fafb' }}>
+    <div className="flex flex-col bg-surface-2" style={{ height: '100%' }}>
       {/* Header */}
-      <div style={{
-        display: 'flex',
-        alignItems: 'center',
-        padding: '8px 12px',
-        borderBottom: '1px solid #d1d5db',
-        flexShrink: 0,
-      }}>
-        <span style={{ flex: 1, fontSize: 14, fontWeight: 600, color: '#111827' }}>团队概览</span>
+      <div className="flex items-center border-b border-border shrink-0" style={{ padding: '8px 12px' }}>
+        <span className="flex-1 text-sm font-semibold text-foreground">团队概览</span>
         <button
           onClick={refresh}
+          className="text-muted-foreground"
           style={{
             background: 'transparent',
             border: 'none',
-            color: '#64748b',
             cursor: 'pointer',
             padding: 4,
             display: 'flex',
@@ -36,7 +30,7 @@ export function DashboardPanel() {
       <div style={{ flex: 1, overflow: 'auto', padding: 12 }}>
         {isLoading ? (
           <div style={{ display: 'flex', justifyContent: 'center', padding: 40 }}>
-            <Loader2 style={{ width: 24, height: 24, color: '#0ea5e9', animation: 'spin 1s linear infinite' }} />
+            <Loader2 className="text-primary animate-spin" style={{ width: 24, height: 24 }} />
           </div>
         ) : (
           <>
@@ -49,21 +43,17 @@ export function DashboardPanel() {
 
             {/* Active Tasks */}
             <div style={{ marginBottom: 16 }}>
-              <div style={{ fontSize: 12, color: '#64748b', marginBottom: 8, fontWeight: 600 }}>进行中的任务</div>
+              <div className="text-xs text-muted-foreground font-semibold" style={{ marginBottom: 8 }}>进行中的任务</div>
               {activeTasks.length === 0 ? (
-                <div style={{ fontSize: 12, color: '#475569', padding: '8px 0' }}>当前没有进行中的任务</div>
+                <div className="text-xs text-muted-foreground" style={{ padding: '8px 0' }}>当前没有进行中的任务</div>
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                   {activeTasks.map(task => (
                     <div
                       key={task.sessionId}
+                      className="bg-muted border border-border rounded-md flex items-center"
                       style={{
                         padding: '8px 10px',
-                        background: '#f3f4f6',
-                        border: '1px solid #d1d5db',
-                        borderRadius: 6,
-                        display: 'flex',
-                        alignItems: 'center',
                         gap: 8,
                       }}
                     >
@@ -73,10 +63,10 @@ export function DashboardPanel() {
                         className="shrink-0"
                       />
                       <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: 12, color: '#111827', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        <div className="text-xs text-foreground truncate">
                           {task.agentName}
                         </div>
-                        <div style={{ fontSize: 11, color: '#475569', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        <div className="text-muted-foreground truncate" style={{ fontSize: 11 }}>
                           {task.sessionTitle}
                         </div>
                       </div>
@@ -96,9 +86,9 @@ export function DashboardPanel() {
 
             {/* Recent Activity */}
             <div>
-              <div style={{ fontSize: 12, color: '#64748b', marginBottom: 8, fontWeight: 600 }}>最近活动</div>
+              <div className="text-xs text-muted-foreground font-semibold" style={{ marginBottom: 8 }}>最近活动</div>
               {recentActivity.length === 0 ? (
-                <div style={{ fontSize: 12, color: '#475569', padding: '8px 0' }}>暂无活动记录</div>
+                <div className="text-xs text-muted-foreground" style={{ padding: '8px 0' }}>暂无活动记录</div>
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                   {recentActivity.map(activity => (
@@ -113,17 +103,14 @@ export function DashboardPanel() {
                         fontSize: 12,
                       }}
                     >
-                      <div style={{
+                      <div className="bg-border rounded-full shrink-0" style={{
                         width: 4,
                         height: 4,
-                        borderRadius: '50%',
-                        background: '#d1d5db',
-                        flexShrink: 0,
                       }} />
-                      <span style={{ color: '#111827', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      <span className="text-foreground flex-1 truncate">
                         {activity.title}
                       </span>
-                      <span style={{ color: '#475569', fontSize: 11, flexShrink: 0 }}>
+                      <span className="text-muted-foreground shrink-0" style={{ fontSize: 11 }}>
                         {formatTime(activity.updatedAt)}
                       </span>
                     </div>
@@ -140,15 +127,9 @@ export function DashboardPanel() {
 
 function StatusCard({ label, count, color }: { label: string; count: number; color: string }) {
   return (
-    <div style={{
-      padding: '12px 8px',
-      background: '#f3f4f6',
-      border: '1px solid #d1d5db',
-      borderRadius: 8,
-      textAlign: 'center',
-    }}>
+    <div className="bg-muted border border-border rounded-lg text-center" style={{ padding: '12px 8px' }}>
       <div style={{ fontSize: 20, fontWeight: 700, color, marginBottom: 2 }}>{count}</div>
-      <div style={{ fontSize: 11, color: '#64748b' }}>{label}</div>
+      <div className="text-muted-foreground" style={{ fontSize: 11 }}>{label}</div>
     </div>
   )
 }
